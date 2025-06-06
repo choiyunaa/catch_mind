@@ -126,35 +126,41 @@ module.exports = (io) => {
 
         // 3초 후 게임 시작
         setTimeout(async () => {
-          room.status = 'playing';
-          room.currentRound = 1;
-          room.startTime = new Date();
-          
-          // 첫 번째 그리는 사람 선택
-          const firstDrawer = room.players[Math.floor(Math.random() * room.players.length)];
-          room.currentDrawer = firstDrawer.userId;
-          
-          // 첫 번째 제시어 선택
-          room.currentWord = words[Math.floor(Math.random() * words.length)];
-          
-          // 게임 시작 시간 설정
-          room.endTime = new Date(Date.now() + 120 * 1000); // 120초(2분)
+          try {
+            room.status = 'playing';
+            room.currentRound = 1;
+            room.startTime = new Date();
+            
+            // 첫 번째 그리는 사람 선택
+            const firstDrawer = room.players[Math.floor(Math.random() * room.players.length)];
+            room.currentDrawer = firstDrawer.userId;
+            
+            // 첫 번째 제시어 선택
+            room.currentWord = words[Math.floor(Math.random() * words.length)];
+            
+            // 게임 시작 시간 설정
+            room.endTime = new Date(Date.now() + 120 * 1000); // 120초(2분)
 
-          await room.save();
+            await room.save();
 
-          // 모든 플레이어에게 게임 시작 알림
-          io.to(roomId).emit('gameStarted', {
-            drawer: firstDrawer,
-            endTime: room.endTime.toISOString(),
-            round: room.currentRound,
-            maxRounds: room.maxRounds
-          });
+            // 모든 플레이어에게 게임 시작 알림
+            io.to(roomId).emit('gameStarted', {
+              drawer: firstDrawer,
+              endTime: room.endTime.toISOString(),
+              round: room.currentRound,
+              maxRounds: room.maxRounds
+            });
 
-          // 그리는 사람에게만 제시어 전송 (임시: 방 전체에 보내고 프론트에서 userId로 구분)
-          io.to(roomId).emit('word', {
-            userId: firstDrawer.userId,
-            word: room.currentWord
-          });
+            // word emit 직전 로그 추가
+            console.log('[emit word] to room:', roomId, 'drawerUserId:', firstDrawer.userId, 'word:', room.currentWord);
+            // 그리는 사람에게만 제시어 전송 (임시: 방 전체에 보내고 프론트에서 userId로 구분)
+            io.to(roomId).emit('word', {
+              userId: firstDrawer.userId,
+              word: room.currentWord
+            });
+          } catch (err) {
+            console.error('[setTimeout 내부 에러]', err);
+          }
         }, 3000);
       } catch (err) {
         console.error('Error in startGame:', err);
