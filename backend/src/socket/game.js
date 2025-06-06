@@ -105,6 +105,11 @@ module.exports = (io) => {
 
         // 방장인지 확인
         const userId = socket.handshake.auth.userId;
+        if (!userId) {
+          console.log('userId is missing');
+          return;
+        }
+
         const isHost = room.players.find(p => p.userId.toString() === userId)?.isHost;
         if (!isHost) {
           console.log('Only host can start the game');
@@ -145,8 +150,8 @@ module.exports = (io) => {
             maxRounds: room.maxRounds
           });
 
-          // 그리는 사람에게만 제시어 전송
-          io.to(firstDrawer.userId).emit('word', {
+          // 그리는 사람에게만 제시어 전송 (임시: 방 전체에 보내고 프론트에서 userId로 구분)
+          io.to(roomId).emit('word', {
             userId: firstDrawer.userId,
             word: room.currentWord
           });
