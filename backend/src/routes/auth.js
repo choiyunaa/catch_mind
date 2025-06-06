@@ -20,7 +20,15 @@ router.post('/register', async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const user = new User({ username, nickname, password: hash });
     await user.save();
-    res.status(201).json({ message: '회원가입 성공' });
+
+    // 회원가입 성공 시 토큰 발급
+    const token = jwt.sign({ userId: user._id, nickname: user.nickname }, process.env.JWT_SECRET, { expiresIn: '7d' });
+    res.status(201).json({ 
+      message: '회원가입 성공',
+      token,
+      nickname: user.nickname,
+      userId: user._id
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: '서버 오류', error: err.message });
