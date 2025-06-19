@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import CreateRoomModal from '../components/CreateRoomModal';
+import CreateRoomModal from '../components/room/CreateRoomModal';
 
 interface Room {
   _id: string;

@@ -17,6 +17,12 @@ interface Message {
   timestamp: number;
 }
 
+interface DrawData {
+  x: number;
+  y: number;
+  type: 'start' | 'draw';
+}
+
 const GameRoom: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const [socket, setSocket] = useState<Socket | null>(null);
@@ -36,6 +42,8 @@ const GameRoom: React.FC = () => {
   const [isDrawingMode, setIsDrawingMode] = useState(false);
   const [lineWidth, setLineWidth] = useState(5);
   const [lineColor, setLineColor] = useState('#000000');
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Canvas setup
   useEffect(() => {
@@ -71,6 +79,16 @@ const GameRoom: React.FC = () => {
       console.log('Connected to server');
     });
 
+    newSocket.on('connect_error', (err) => {
+      console.error('Socket connection error:', err);
+      // 필요시 사용자에게 알림 추가 가능
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from server');
+      // UI 처리 가능
+    });
+
     newSocket.on('room:players', (roomPlayers: Player[]) => {
       setPlayers(roomPlayers);
     });
@@ -79,6 +97,8 @@ const GameRoom: React.FC = () => {
       setGameStatus('playing');
       setMaxRounds(data.maxRounds);
       setCurrentRound(1);
+      clearCanvas();
+      setMessages([]); // 게임 시작 시 채팅 초기화 선택사항
     });
 
     newSocket.on('game:round', (data: { 
@@ -90,9 +110,10 @@ const GameRoom: React.FC = () => {
       setIsMyTurn(data.drawer === userId);
       setCurrentWord(data.drawer === userId ? data.word : '');
       setTimeLeft(data.timeLeft);
+      clearCanvas();
     });
 
-    newSocket.on('game:draw', (data: { x: number, y: number, type: string }) => {
+    newSocket.on('game:draw', (data: DrawData) => {
       if (!contextRef.current) return;
       const context = contextRef.current;
 
@@ -111,6 +132,7 @@ const GameRoom: React.FC = () => {
 
     newSocket.on('game:end', () => {
       setGameStatus('finished');
+      clearCanvas();
     });
 
     setSocket(newSocket);
@@ -119,6 +141,22 @@ const GameRoom: React.FC = () => {
       newSocket.close();
     };
   }, [roomId]);
+
+  // Timer countdown
+  useEffect(() => {
+    if (gameStatus !== 'playing' || timeLeft <= 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [gameStatus, timeLeft]);
+
+  // Scroll chat to bottom on new message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   // Drawing functions
   const startDrawing = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -217,50 +255,43 @@ const GameRoom: React.FC = () => {
               min="1"
               max="20"
               value={lineWidth}
-              onChange={(e) => setLineWidth(Number(e.target.value))}
+              onChange={(e) => setLineWidth(parseInt(e.target.value))}
               style={{ marginLeft: 8 }}
             />
             <button onClick={clearCanvas} style={{ marginLeft: 8 }}>
-              Clear Canvas
+              Clear
             </button>
           </div>
         )}
       </div>
 
       {/* Right sidebar - Chat */}
-      <div style={{ width: 300, padding: 16, borderLeft: '1px solid #ddd' }}>
+      <div style={{ width: 300, padding: 16, borderLeft: '1px solid #ddd', display: 'flex', flexDirection: 'column' }}>
         <h3>Chat</h3>
-        <div style={{ 
-          height: 'calc(100vh - 200px)', 
-          overflowY: 'auto',
-          marginBottom: 16,
-          padding: 8,
-          border: '1px solid #ddd'
-        }}>
-          {messages.map((message, index) => (
-            <div key={index} style={{ marginBottom: 8 }}>
-              <span style={{ 
-                color: message.type === 'system' ? '#666' : '#000',
-                fontWeight: message.type === 'system' ? 'normal' : 'bold'
-              }}>
-                {message.nickname}:
-              </span>
-              <span style={{ marginLeft: 8 }}>{message.content}</span>
+        <div style={{ flex: 1, overflowY: 'auto', border: '1px solid #ccc', padding: 8, marginBottom: 8 }}>
+          {messages.map((msg, idx) => (
+            <div key={idx} style={{ marginBottom: 4 }}>
+              <strong>{msg.type === 'system' ? '[System]' : msg.nickname}:</strong> {msg.content}
             </div>
           ))}
+          <div ref={chatEndRef} />
         </div>
-        <form onSubmit={sendMessage}>
+        <form onSubmit={sendMessage} style={{ display: 'flex' }}>
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Type a message..."
-            style={{ width: '100%', padding: 8 }}
+            disabled={gameStatus !== 'playing'}
+            style={{ flex: 1, marginRight: 8 }}
+            placeholder={gameStatus !== 'playing' ? 'Game not started' : 'Type a message'}
           />
+          <button type="submit" disabled={gameStatus !== 'playing'}>
+            Send
+          </button>
         </form>
       </div>
     </div>
   );
 };
 
-export default GameRoom; 
+export default GameRoom;
