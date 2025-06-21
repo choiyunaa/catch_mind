@@ -1,5 +1,11 @@
 // src/components/game/Canvas.tsx
-import React, { useEffect, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useImperativeHandle,
+  forwardRef,
+} from 'react';
 import { Socket } from 'socket.io-client';
 
 const COLORS = ['#f44336', '#ff9800', '#ffeb3b', '#4caf50', '#2196f3', '#9c27b0'];
@@ -16,7 +22,11 @@ interface CanvasProps {
   currentDrawer: string | null;
 }
 
-const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
+export interface CanvasHandle {
+  clearCanvas: () => void;
+}
+
+const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentDrawer }, ref) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   const [color, setColor] = useState(COLORS[0]);
@@ -25,21 +35,46 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 500 });
 
-  // 반응형 캔버스 크기 조절
+  useImperativeHandle(ref, () => ({
+    clearCanvas: () => {
+      const ctx = canvasRef.current?.getContext('2d');
+      if (ctx && canvasRef.current) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      }
+    },
+  }));
+
   useEffect(() => {
     const handleResize = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      if (tempCtx) tempCtx.drawImage(canvas, 0, 0);
+
       const w = Math.max(CANVAS_MIN_WIDTH, Math.min(window.innerWidth * 0.6, CANVAS_MAX_WIDTH));
       const h = Math.max(CANVAS_MIN_HEIGHT, Math.min(window.innerHeight * 0.6, CANVAS_MAX_HEIGHT));
+
+      canvas.width = w;
+      canvas.height = h;
       setCanvasSize({ width: w, height: h });
+
+      if (tempCtx) {
+        ctx.drawImage(tempCanvas, 0, 0, tempCanvas.width, tempCanvas.height, 0, 0, w, h);
+      }
     };
     handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // 그리기 시작
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (currentDrawer !== localStorage.getItem('userId')) return; // 현재 그리는 사람인지 체크
+    if (currentDrawer !== localStorage.getItem('userId')) return;
     if (mode === 'fill') {
       handleFill();
       return;
@@ -59,11 +94,10 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
         color,
         lineWidth,
         mode,
-      }
+      },
     });
   };
 
-  // 그리기 진행
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (!isDrawing) return;
     if (currentDrawer !== localStorage.getItem('userId')) return;
@@ -87,11 +121,10 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
         color,
         lineWidth,
         mode,
-      }
+      },
     });
   };
 
-  // 그리기 종료
   const handleMouseUp = () => {
     if (!isDrawing) return;
     setIsDrawing(false);
@@ -100,11 +133,10 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
 
     socket?.emit('draw', {
       roomId,
-      data: { type: 'end' }
+      data: { type: 'end' },
     });
   };
 
-  // 전체 지우기
   const handleClear = () => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx || !canvasRef.current) return;
@@ -112,11 +144,10 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
 
     socket?.emit('draw', {
       roomId,
-      data: { type: 'clear' }
+      data: { type: 'clear' },
     });
   };
 
-  // 채우기
   const handleFill = () => {
     const ctx = canvasRef.current?.getContext('2d');
     if (!ctx || !canvasRef.current) return;
@@ -126,11 +157,10 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
 
     socket?.emit('draw', {
       roomId,
-      data: { type: 'fill', color }
+      data: { type: 'fill', color },
     });
   };
 
-  // 소켓으로 다른 사람의 그리기 명령 처리
   useEffect(() => {
     if (!socket) return;
     const ctx = canvasRef.current?.getContext('2d');
@@ -204,7 +234,10 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
         {COLORS.map(c => (
           <div
             key={c}
-            onClick={() => { setColor(c); setMode('draw'); }}
+            onClick={() => {
+              setColor(c);
+              setMode('draw');
+            }}
             style={{
               width: 36,
               height: 36,
@@ -212,7 +245,7 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
               backgroundColor: c,
               border: color === c ? '3px solid #333' : '2px solid #fff',
               cursor: 'pointer',
-              boxShadow: '0 1px 4px #0002'
+              boxShadow: '0 1px 4px #0002',
             }}
           />
         ))}
@@ -224,7 +257,7 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
             backgroundColor: '#fff',
             fontWeight: 'bold',
             fontSize: 16,
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
           onClick={() => setMode('fill')}
         >
@@ -238,7 +271,7 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
             backgroundColor: '#fff',
             fontWeight: 'bold',
             fontSize: 16,
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
           onClick={() => setMode('erase')}
         >
@@ -252,7 +285,7 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
             backgroundColor: '#fff',
             fontWeight: 'bold',
             fontSize: 16,
-            cursor: 'pointer'
+            cursor: 'pointer',
           }}
           onClick={handleClear}
         >
@@ -261,6 +294,6 @@ const Canvas: React.FC<CanvasProps> = ({ socket, roomId, currentDrawer }) => {
       </div>
     </div>
   );
-};
+});
 
 export default Canvas;

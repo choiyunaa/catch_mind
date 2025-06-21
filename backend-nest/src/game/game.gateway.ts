@@ -39,14 +39,14 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
   }
 
   @SubscribeMessage('startGame')
-  handleStartGame(
-    @MessageBody() data: { roomId: string },
-    @ConnectedSocket() client: Socket,
-  ) {
-    this.gameService.setRoomId(data.roomId);
-    this.gameService.setIo(this.server);
-    this.gameService.startGame();
-  }
+handleStartGame(
+  @MessageBody() data: { roomId: string; round: number },
+  @ConnectedSocket() client: Socket,
+) {
+  this.gameService.setIo(this.server);
+  this.gameService.startGame(data.roomId, data.round);
+}
+
 
   @SubscribeMessage('chat')
   handleChat(
@@ -68,4 +68,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.server.to(data.roomId).emit('room:players', players);
     }
   }
+  @SubscribeMessage('draw')
+handleDraw(
+  @MessageBody() data: { roomId: string; data: any },
+  @ConnectedSocket() client: Socket,
+) {
+  // 다른 사람들에게 전달
+  client.broadcast.to(data.roomId).emit('draw', data.data);
+}
 }
