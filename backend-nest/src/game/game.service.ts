@@ -110,11 +110,14 @@ private gainedScore: number = 0;
 }
 
   private endRound() {
+  const players = this.getPlayers(this.roomId); // ✅ 현재 플레이어 목록 가져오기
+
   // 라운드 요약 데이터 준비
   this.io.to(this.roomId).emit('roundSummary', {
     correctUser: this.correctUser?.nickname || null,
     word: this.word,
     gainedScore: this.gainedScore,
+    players,
   });
 
   // 정답자 초기화

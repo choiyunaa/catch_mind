@@ -105,20 +105,26 @@ const RoomPage: React.FC = () => {
     });
 
     newSocket.on('roundSummary', (data) => {
-      setGameStatus('summary');
-      setRoundSummary(data);
-      canvasRef.current?.clearCanvas();
-      setPlayers(data.players);
-      setTimeout(() => {
-        setRoundSummary(null);
-        if (currentRound < maxRounds) {
-          setGameStatus('playing');
-        } else {
-          setGameStatus('finished');
-          setFinalResultVisible(true);
-        }
-      }, 5000);
-    });
+  setGameStatus('summary');
+  setRoundSummary({
+    correctUser: data.correctUser,
+    word: data.word,
+    gainedScore: data.gainedScore,
+    players: data.players, // ✅ 명확히 추가!
+  });
+  canvasRef.current?.clearCanvas();
+  setPlayers(data.players);
+
+  setTimeout(() => {
+    setRoundSummary(null);
+    if (currentRound < maxRounds) {
+      setGameStatus('playing');
+    } else {
+      setGameStatus('finished');
+      setFinalResultVisible(true);
+    }
+  }, 5000);
+});
 
     newSocket.on('chat', ({ userId: senderId, message }) => {
       setPlayers((prev) =>
@@ -199,7 +205,7 @@ const RoomPage: React.FC = () => {
   word={roundSummary?.word || ''}
   correctUser={roundSummary?.correctUser || null}
   gainedScore={roundSummary?.gainedScore || 0}
-  players={roundSummary?.players ?? []} // ✅ 한 번만 정확하게!
+  players={roundSummary?.players || []}
 />
 
       <FinalResultModal
@@ -213,6 +219,7 @@ const RoomPage: React.FC = () => {
           setTimeLeft(120);
           setRoundSummary(null);
           canvasRef.current?.clearCanvas();
+          setFinalResultVisible(false);
         }}
         onLeave={handleLeaveRoom}
       />
