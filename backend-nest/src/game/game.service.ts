@@ -2,16 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { Server } from 'socket.io';
 
 interface Player {
+  clientId: string;
   userId: string;
   nickname: string;
-  isHost?: boolean;
+  isHost: boolean;
+  score: number;
+  lastMessage?: string;
 }
 
 @Injectable()
 export class GameService {
-  private roomId: string;
-  private players: Player[] = [];
+  private players = new Map<string, Player[]>(); // roomId -> players
   private drawer: Player | null = null;
+  private roomId: string;
   private word: string = '';
   private endTime: Date | null = null;
   private io: Server;
@@ -19,9 +22,6 @@ export class GameService {
   private maxRounds = 3;
   private isGameStarted = false;
 
-  constructor() {}
-
-  // Socket.IO 서버 객체 세팅 (외부에서 주입 가능)
   setIo(io: Server) {
     this.io = io;
   }
@@ -30,17 +30,37 @@ export class GameService {
     this.roomId = roomId;
   }
 
-  addPlayer(player: Player) {
-    if (!this.players.find(p => p.userId === player.userId)) {
-      this.players.push(player);
-    }
+  addPlayer(roomId: string, playerInfo: { clientId: string; userId: string; nickname: string }) {
+    const roomPlayers = this.players.get(roomId) || [];
+    if (roomPlayers.find(p => p.userId === playerInfo.userId)) return; // 중복 방지
+
+    const newPlayer: Player = {
+      ...playerInfo,
+      isHost: roomPlayers.length === 0,
+      score: 0,
+    };
+
+    roomPlayers.push(newPlayer);
+    this.players.set(roomId, roomPlayers);
   }
 
-  removePlayer(userId: string) {
-    this.players = this.players.filter(p => p.userId !== userId);
-    if (this.drawer?.userId === userId) {
-      this.endRound();
+  removePlayerByClientId(clientId: string): { roomId: string; wasHost: boolean } | null {
+    for (const [roomId, roomPlayers] of this.players.entries()) {
+      const idx = roomPlayers.findIndex(p => p.clientId === clientId);
+      if (idx !== -1) {
+        const [removed] = roomPlayers.splice(idx, 1);
+        this.players.set(roomId, roomPlayers);
+        if (removed.isHost && roomPlayers.length > 0) {
+          roomPlayers[0].isHost = true;
+        }
+        return { roomId, wasHost: removed.isHost };
+      }
     }
+    return null;
+  }
+
+  getPlayers(roomId: string): Player[] {
+    return this.players.get(roomId) || [];
   }
 
   startGame() {
@@ -59,11 +79,15 @@ export class GameService {
       return;
     }
 
-    const drawerIndex = (this.round - 1) % this.players.length;
-    this.drawer = this.players[drawerIndex];
+    const players = this.players.get(this.roomId) || [];
+    if (players.length === 0) {
+      this.endGame();
+      return;
+    }
 
+    const drawerIndex = (this.round - 1) % players.length;
+    this.drawer = players[drawerIndex];
     this.word = this.getRandomWord();
-
     this.endTime = new Date(Date.now() + 120000);
 
     this.io.to(this.roomId).emit('gameStarted', {
@@ -73,7 +97,7 @@ export class GameService {
       maxRounds: this.maxRounds,
     });
 
-    this.io.to(this.drawer.userId).emit('word', {
+    this.io.to(this.drawer.clientId).emit('word', {
       userId: this.drawer.userId,
       word: this.word,
     });
@@ -91,7 +115,7 @@ export class GameService {
   private endGame() {
     this.isGameStarted = false;
     this.io.to(this.roomId).emit('gameEnd', {
-      players: this.players,
+      players: this.players.get(this.roomId) || [],
     });
   }
 

@@ -1,3 +1,5 @@
+// C:\Users\yunas\development\catch_mind\frontend\src\pages\AuthPage.tsx
+
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -47,11 +49,11 @@ const AuthPage: React.FC = () => {
           localStorage.setItem('nickname', data.nickname);
           localStorage.setItem('userId', data.userId);
           setMessage('회원가입 성공!');
-          navigate('/');
+          navigate('/'); 
         } else {
           setMessage(data.message || '회원가입 실패');
         }
-      } else {
+      } else { // login mode
         if (!username || !password) {
           setMessage('ID와 비밀번호를 입력하세요.');
           setLoading(false);

@@ -1,15 +1,19 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';  // 여기 추가
+import { ValidationPipe } from '@nestjs/common';
+import { IoAdapter } from '@nestjs/platform-socket.io'; 
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  app.enableCors();
+  app.enableCors({
+    origin: 'http://localhost:3000', 
+    credentials: true,
+  });
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.setGlobalPrefix('api');
-
-  // 유효성 검사 파이프 추가!
   app.useGlobalPipes(new ValidationPipe());
 
   const port = 9999;
