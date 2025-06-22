@@ -98,24 +98,31 @@ if (players.length >= 3) {
   }
 
   removeUserFromRoom(socketId: string): string | null {
-    for (const [roomId, players] of this.roomPlayers.entries()) {
-      const index = players.findIndex((p) => p.clientId === socketId);
-      if (index !== -1) {
-        const [removedPlayer] = players.splice(index, 1);
-        if (players.length === 0) {
-          this.roomPlayers.delete(roomId);
-          this.roomStates.delete(roomId);
-          this.lastCorrectUserId.delete(roomId);
-          this.lastGainedScore.delete(roomId);
-        } else if (removedPlayer.isHost) {
-          players[0].isHost = true;
-        }
-        this.roomPlayers.set(roomId, players);
-        return roomId;
+  for (const [roomId, players] of this.roomPlayers.entries()) {
+    const index = players.findIndex((p) => p.clientId === socketId);
+    if (index !== -1) {
+      const [removedPlayer] = players.splice(index, 1);
+
+      if (players.length === 0) {
+        // 방에 아무도 없으면 메모리 정리 + DB에서도 삭제
+        this.roomPlayers.delete(roomId);
+        this.roomStates.delete(roomId);
+        this.lastCorrectUserId.delete(roomId);
+        this.lastGainedScore.delete(roomId);
+
+        this.roomModel.deleteOne({ roomId }).exec(); // ← DB에서도 삭제
+        console.log(`[Room Deleted] No players left in ${roomId}`);
+      } else if (removedPlayer.isHost) {
+        players[0].isHost = true;
       }
+
+      this.roomPlayers.set(roomId, players);
+      return roomId;
     }
-    return null;
   }
+  return null;
+}
+
 
   getPlayersInRoom(roomId: string): Player[] {
     return this.roomPlayers.get(roomId) || [];
