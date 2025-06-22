@@ -4,6 +4,7 @@ import CreateRoomModal from '../components/room/CreateRoomModal';
 
 interface Room {
   _id: string;
+  roomId: string;
   title: string;
   isPrivate: boolean;
   maxPlayers: number;
@@ -82,7 +83,7 @@ const MainPage: React.FC = () => {
       const room = await res.json();
       setIsCreateModalOpen(false);
       // 생성된 방으로 이동 (SPA 방식)
-      navigate(`/room/${room._id}`);
+      navigate(`/room/${room.roomId}`);
     } catch (err: any) {
       setError(err.message || '방 생성에 실패했습니다.');
     }
@@ -152,12 +153,12 @@ const MainPage: React.FC = () => {
                 <div style={{ flex: 1 }}>
                   <b>{room.title}</b>
                   <div style={{ fontSize: '0.9em', color: '#666' }}>
-                    {room.players.length} / {room.maxPlayers}명
+                    ({Array.isArray(room.players) ? room.players.length : 0} / {room.maxPlayers}명)
                   </div>
                 </div>
                 <button 
                   style={{ marginLeft: 16 }}
-                  onClick={() => window.location.href = `/room/${room._id}`}
+                  onClick={() => window.location.href = `/room/${room.roomId}`}
                 >
                   입장
                 </button>
