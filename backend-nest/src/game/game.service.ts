@@ -1,6 +1,6 @@
+// src/game/game.service.ts
 import { Injectable } from '@nestjs/common';
 import { Server } from 'socket.io';
-import words from './words';
 
 interface Player {
   clientId: string;
@@ -11,50 +11,58 @@ interface Player {
   lastMessage?: string;
 }
 
+interface GameState {
+  players: Player[];
+  drawer: Player | null;
+  word: string;
+  endTime: Date | null;
+  round: number;
+  maxRounds: number;
+  isGameStarted: boolean;
+  isRoundActive: boolean;
+  correctUser: Player | null;
+  gainedScore: number;
+  roundTimeout?: NodeJS.Timeout;
+  countdownTimeout?: NodeJS.Timeout;
+}
+
 @Injectable()
 export class GameService {
-  private players = new Map<string, Player[]>(); // roomId -> players
-  private drawer: Player | null = null;
-  private roomId: string;
-  private word: string = '';
-  private endTime: Date | null = null;
   private io: Server;
-  private round = 0;
-  private maxRounds = 3;
-  private isGameStarted = false;
-  private correctUser: Player | null = null;
-  private gainedScore: number = 0;
+  private gameStates = new Map<string, GameState>(); // roomId -> GameState
+
+  // 임시 단어 리스트 5개만
+  private readonly words = ['사과', '바나나', '강아지', '축구', '컴퓨터'];
 
   setIo(io: Server) {
     this.io = io;
   }
 
-  setRoomId(roomId: string) {
-    this.roomId = roomId;
-  }
-
   addPlayer(roomId: string, playerInfo: { clientId: string; userId: string; nickname: string }) {
-    const roomPlayers = this.players.get(roomId) || [];
-    if (roomPlayers.find(p => p.userId === playerInfo.userId)) return; // 중복 방지
+    const state = this.gameStates.get(roomId) || this.createNewGameState();
+    if (state.players.find(p => p.userId === playerInfo.userId)) return; // 중복 방지
 
     const newPlayer: Player = {
       ...playerInfo,
-      isHost: roomPlayers.length === 0,
+      isHost: state.players.length === 0,
       score: 0,
     };
 
-    roomPlayers.push(newPlayer);
-    this.players.set(roomId, roomPlayers);
+    state.players.push(newPlayer);
+    this.gameStates.set(roomId, state);
   }
 
   removePlayerByClientId(clientId: string): { roomId: string; wasHost: boolean } | null {
-    for (const [roomId, roomPlayers] of this.players.entries()) {
-      const idx = roomPlayers.findIndex(p => p.clientId === clientId);
+    for (const [roomId, state] of this.gameStates.entries()) {
+      const idx = state.players.findIndex(p => p.clientId === clientId);
       if (idx !== -1) {
-        const [removed] = roomPlayers.splice(idx, 1);
-        this.players.set(roomId, roomPlayers);
-        if (removed.isHost && roomPlayers.length > 0) {
-          roomPlayers[0].isHost = true;
+        const [removed] = state.players.splice(idx, 1);
+        if (removed.isHost && state.players.length > 0) {
+          state.players[0].isHost = true;
+        }
+        // 플레이어 전부 나가면 상태 초기화
+        if (state.players.length === 0) {
+          this.clearGameState(roomId);
         }
         return { roomId, wasHost: removed.isHost };
       }
@@ -63,101 +71,156 @@ export class GameService {
   }
 
   getPlayers(roomId: string): Player[] {
-    return this.players.get(roomId) || [];
+    const state = this.gameStates.get(roomId);
+    return state ? state.players : [];
+  }
+
+  getCurrentWord(roomId: string): string | null {
+    const state = this.gameStates.get(roomId);
+    return state ? state.word : null;
   }
 
   startGame(roomId: string, round: number = 1) {
-    this.roomId = roomId;
-    if (this.isGameStarted) return;
-    this.isGameStarted = true;
-    this.round = round;
+    let state = this.gameStates.get(roomId);
+    if (!state) {
+      state = this.createNewGameState();
+      this.gameStates.set(roomId, state);
+    }
 
-    this.io.to(this.roomId).emit('game:countdown');
+    if (state.isGameStarted) return;
 
-    setTimeout(() => this.startRound(), 3000);
+    state.isGameStarted = true;
+    state.round = round;
+    state.maxRounds = 3;
+
+    this.gameStates.set(roomId, state);
+
+    this.io.to(roomId).emit('game:countdown');
+
+    if (state.countdownTimeout) clearTimeout(state.countdownTimeout);
+    state.countdownTimeout = setTimeout(() => this.startRound(roomId), 3000);
   }
 
-  private startRound() {
-    if (this.round > this.maxRounds) {
-      this.endGame();
+  private startRound(roomId: string) {
+    const state = this.gameStates.get(roomId);
+    if (!state) return;
+
+    if (state.round > state.maxRounds) {
+      this.endGame(roomId);
       return;
     }
 
-    const players = this.players.get(this.roomId) || [];
-    if (players.length === 0) {
-      this.endGame();
+    if (state.players.length === 0) {
+      this.endGame(roomId);
       return;
     }
 
-    const drawerIndex = (this.round - 1) % players.length;
-    this.drawer = players[drawerIndex];
-    this.word = this.getRandomWord();
-    this.endTime = new Date(Date.now() + 120000); // 2분 후
+    state.isRoundActive = true;
 
-    this.io.to(this.roomId).emit('gameStarted', {
-      drawer: this.drawer,
-      endTime: this.endTime.toISOString(),
-      round: this.round,
-      maxRounds: this.maxRounds,
+    const drawerIndex = (state.round - 1) % state.players.length;
+    state.drawer = state.players[drawerIndex];
+    state.word = this.getRandomWord();
+    state.endTime = new Date(Date.now() + 120000); // 2분 타임아웃
+
+    this.io.to(roomId).emit('gameStarted', {
+      drawer: state.drawer,
+      endTime: state.endTime.toISOString(),
+      round: state.round,
+      maxRounds: state.maxRounds,
     });
 
-    this.io.to(this.drawer.clientId).emit('word', {
-      userId: this.drawer.userId,
-      word: this.word,
+    this.io.to(state.drawer.clientId).emit('word', {
+      userId: state.drawer.userId,
+      word: state.word,
     });
 
-    // 2분 후 자동으로 라운드 종료
-    setTimeout(() => this.endRound(), 120000);
+    if (state.roundTimeout) clearTimeout(state.roundTimeout);
+    state.roundTimeout = setTimeout(() => {
+      if (state.isRoundActive) {
+        this.endRound(roomId);
+      }
+    }, 120000);
   }
 
-  private endRound() {
-    const players = this.getPlayers(this.roomId);
+  private endRound(roomId: string) {
+    const state = this.gameStates.get(roomId);
+    if (!state) return;
+    if (!state.isRoundActive) return;
 
-    // 라운드 요약 데이터 준비
-    this.io.to(this.roomId).emit('roundSummary', {
-      correctUser: this.correctUser?.nickname || null,
-      word: this.word,
-      gainedScore: this.gainedScore,
-      players,
+    state.isRoundActive = false;
+
+    this.io.to(roomId).emit('roundSummary', {
+      correctUser: state.correctUser?.nickname || null,
+      word: state.word,
+      gainedScore: state.gainedScore,
+      players: state.players,
     });
 
-    // 정답자 초기화
-    this.correctUser = null;
-    this.gainedScore = 0;
+    state.correctUser = null;
+    state.gainedScore = 0;
 
-    // 5초 후 다음 라운드 시작
+    if (state.roundTimeout) clearTimeout(state.roundTimeout);
     setTimeout(() => {
-      this.round++;
-      if (this.round <= this.maxRounds) {
-        this.startRound();
+      state.round++;
+      if (state.round <= state.maxRounds) {
+        this.startRound(roomId);
       } else {
-        this.endGame();
+        this.endGame(roomId);
       }
     }, 5000);
   }
 
-  handleCorrectAnswer(userId: string) {
-    const players = this.players.get(this.roomId);
-    const correctPlayer = players?.find(p => p.userId === userId);
+  handleCorrectAnswer(roomId: string, userId: string) {
+    const state = this.gameStates.get(roomId);
+    if (!state) return;
+    if (!state.isRoundActive) return;
+
+    const correctPlayer = state.players.find(p => p.userId === userId);
     if (correctPlayer) {
       const score = 100;
       correctPlayer.score += score;
 
-      this.correctUser = correctPlayer;
-      this.gainedScore = score;
+      state.correctUser = correctPlayer;
+      state.gainedScore = score;
 
-      this.endRound();
+      state.isRoundActive = false;
+      this.endRound(roomId);
     }
   }
 
-  private endGame() {
-    this.isGameStarted = false;
-    this.io.to(this.roomId).emit('gameEnd', {
-      players: this.players.get(this.roomId) || [],
+  private endGame(roomId: string) {
+    const state = this.gameStates.get(roomId);
+    if (!state) return;
+
+    state.isGameStarted = false;
+    state.isRoundActive = false;
+    this.io.to(roomId).emit('gameEnd', {
+      players: state.players,
     });
+
+    this.clearGameState(roomId);
   }
 
   private getRandomWord(): string {
-    return words[Math.floor(Math.random() * words.length)];
+    return this.words[Math.floor(Math.random() * this.words.length)];
+  }
+
+  private createNewGameState(): GameState {
+    return {
+      players: [],
+      drawer: null,
+      word: '',
+      endTime: null,
+      round: 0,
+      maxRounds: 3,
+      isGameStarted: false,
+      isRoundActive: false,
+      correctUser: null,
+      gainedScore: 0,
+    };
+  }
+
+  private clearGameState(roomId: string) {
+    this.gameStates.delete(roomId);
   }
 }
