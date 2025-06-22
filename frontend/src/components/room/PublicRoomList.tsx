@@ -37,9 +37,11 @@ const PublicRoomList: React.FC<PublicRoomListProps> = ({ rooms, loading, error, 
         rooms.map((room) => {
           const isFull = room.players.length >= room.maxPlayers;
           const isPlaying = room.status === 'playing';
+          console.log('룸 상태:', room.roomId, room.status);
+
           const canJoin = room.status === 'waiting' && !isFull;
 
-          // 상태 텍스트와 색깔 설정
+          // 상태 텍스트와 색깔
           let statusText = '';
           let statusColor = '';
           if (room.status === 'waiting') {

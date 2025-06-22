@@ -40,15 +40,28 @@ export class RoomsService {
   }
 
   async findPublicRooms(): Promise<any[]> {
-    const rooms = await this.roomModel
-      .find({ isPrivate: false, status: RoomStatus.Waiting })
-      .lean()
-      .exec();
-    return rooms.map((room) => ({
-      ...room,
-      players: this.roomPlayers.get(room.roomId) || [],
-    }));
-  }
+
+    console.log(`[findPublicRooms] roomStates keys:`, [...this.roomStates.keys()]);
+
+  // DB에서 모든 공개방 가져오기 (status 조건 삭제)
+  const rooms = await this.roomModel
+    .find({ isPrivate: false }) 
+    .lean()
+    .exec();
+
+  return rooms.map((room) => {
+  const players = this.roomPlayers.get(room.roomId) || [];
+  const isStarted = this.roomStates.get(room.roomId)?.isStarted;
+  const status = isStarted ? 'playing' : room.status;
+
+  return {
+    ...room,
+    players,         // 서버의 최신 players로 덮어쓰기
+    status           // 이 줄이 반드시 ...room **뒤에** 있어야 함!
+  };
+});
+}
+
 
   async createRoom(createRoomDto: CreateRoomDto): Promise<Room> {
   const roomId = await this.generateRoomIdUnique();
@@ -113,6 +126,13 @@ if (players.length >= 3) {
   }
 
   startGame(roomId: string, round: number = 1) {
+console.log('[startGame] before set:', roomId, this.roomStates.get(roomId));
+  
+  this.roomStates.set(roomId, { isStarted: true, maxRounds: 3, currentRound: round });
+  
+  console.log('[startGame] after set:', roomId, this.roomStates.get(roomId));
+    console.log(`[startGame] roomId: ${roomId}, current roomStates:`, this.roomStates.get(roomId));
+
     // 다시하기 시 상태 초기화
     this.lastCorrectUserId.delete(roomId);
     this.lastGainedScore.delete(roomId);

@@ -54,10 +54,12 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   @SubscribeMessage('startGame')
-  handleStartGame(@MessageBody() data: { roomId: string; round: number }) {
-    this.roomsService.startGame(data.roomId, data.round);
-    this.emitRoomListUpdate();
-  }
+handleStartGame(@MessageBody() data: { roomId: string; round: number }) {
+  console.log('서버에서 startGame 이벤트 받음:', data);
+  this.roomsService.startGame(data.roomId, data.round);
+  this.emitRoomListUpdate();
+}
+
 
   @SubscribeMessage('chat')
   handleChat(
@@ -81,7 +83,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   private async emitRoomListUpdate() {
-    const rooms = await this.roomsService.findPublicRooms();
-    this.server.emit('roomList', rooms);
-  }
+  const roomsList = await this.roomsService.findPublicRooms();
+  this.server.emit('roomList', roomsList);
+}
 }

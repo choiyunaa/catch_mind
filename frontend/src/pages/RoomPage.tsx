@@ -25,7 +25,9 @@ const RoomPage: React.FC = () => {
   const [players, setPlayers] = useState<Player[]>([]);
   const [currentWord, setCurrentWord] = useState('');
   const [timeLeft, setTimeLeft] = useState(120);
-  const [gameStatus, setGameStatus] = useState<'waiting' | 'countdown' | 'playing' | 'summary' | 'finished'>('waiting');
+  const [gameStatus, setGameStatus] = useState<
+    'waiting' | 'countdown' | 'playing' | 'summary' | 'finished'
+  >('waiting');
   const [inputMessage, setInputMessage] = useState('');
   const [countdown, setCountdown] = useState(3);
   const [currentRound, setCurrentRound] = useState(0);
@@ -67,10 +69,12 @@ const RoomPage: React.FC = () => {
     socketConnected.current = true;
 
     newSocket.on('connect', () => {
+      console.log('소켓 연결됨:', newSocket.id);
       newSocket.emit('room:join', { roomId, userId, nickname });
     });
 
-    newSocket.on('connect_error', () => {
+    newSocket.on('connect_error', (err) => {
+      console.error('소켓 연결 오류:', err);
       socketConnected.current = false;
       setSocket(null);
     });
@@ -82,6 +86,26 @@ const RoomPage: React.FC = () => {
 
     newSocket.on('room:players', (players: Player[]) => {
       setPlayers(players);
+    });
+
+    // 새로 추가: 방 전체 상태 업데이트 이벤트
+    newSocket.on('room:update', (roomData) => {
+      setPlayers(roomData.players || []);
+  setCurrentRound(roomData.currentRound || 0);
+  setMaxRounds(roomData.maxRounds || 3);
+  setCurrentDrawer(roomData.currentDrawer || null);
+  setGameStatus(roomData.status || 'waiting');
+  setCurrentWord(roomData.currentWord || '');
+
+      // 상태 변환
+      if (roomData.status === 'waiting') setGameStatus('waiting');
+      else if (roomData.status === 'countdown') setGameStatus('countdown');
+      else if (roomData.status === 'playing') setGameStatus('playing');
+      else if (roomData.status === 'summary') setGameStatus('summary');
+      else if (roomData.status === 'finished') setGameStatus('finished');
+      else setGameStatus('waiting');
+
+      setCurrentWord(roomData.currentWord || '');
     });
 
     newSocket.on('game:countdown', () => {
@@ -189,7 +213,11 @@ const RoomPage: React.FC = () => {
   };
 
   const startGame = () => {
-    if (!socket) return;
+    if (!socket) {
+      console.warn('startGame 호출 시 소켓이 연결되어 있지 않습니다.');
+      return;
+    }
+    console.log('startGame 이벤트 전송:', { roomId, round: 1 });
     setCurrentRound(1);
     socket.emit('startGame', { roomId, round: 1 });
     setFinalResultVisible(false);
@@ -204,7 +232,6 @@ const RoomPage: React.FC = () => {
     navigate('/');
   };
 
-  // 입장 실패 시 모달만 띄우고 방 UI 숨김
   if (joinFailed) {
     return (
       <JoinFailedModal
@@ -283,7 +310,7 @@ const RoomPage: React.FC = () => {
       >
         {Array.isArray(players) &&
           players.find(
-            (p) => p.userId === localStorage.getItem('userId') && p.isHost,
+            (p) => p.userId === localStorage.getItem('userId') && p.isHost
           ) && (
             <button
               onClick={startGame}
@@ -359,13 +386,14 @@ const RoomPage: React.FC = () => {
         >
           {gameStatus === 'playing' ? (
             <>
-              제시어: {currentDrawer === localStorage.getItem('userId') ? currentWord : '???'} / ⏱ {timeLeft}s
+              제시어:{' '}
+              {currentDrawer === localStorage.getItem('userId') ? currentWord : '???'} / ⏱ {timeLeft}s
             </>
           ) : gameStatus === 'countdown' ? (
             <>게임 시작까지 {countdown}초</>
           ) : gameStatus === 'summary' && roundSummary ? (
             <>
-              정답: {roundSummary.word} {' '}
+              정답: {roundSummary.word}{' '}
               {roundSummary.correctUser ? `${roundSummary.correctUser} +${roundSummary.gainedScore}` : ''}
             </>
           ) : (
@@ -387,12 +415,7 @@ const RoomPage: React.FC = () => {
         }}
       >
         <div style={{ flex: 1, marginRight: 300 }}>
-          <Canvas
-            ref={canvasRef}
-            socket={socket}
-            currentDrawer={currentDrawer}
-            roomId={roomId || ''}
-          />
+          <Canvas socket={socket} currentDrawer={currentDrawer} roomId={roomId || ''} ref={canvasRef} />
         </div>
         <PlayerList players={players} />
       </div>
