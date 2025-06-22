@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import io, { Socket } from 'socket.io-client';
+
 import Canvas from '../components/game/Canvas';
 import PlayerList from '../components/game/PlayerList';
 import RoundSummaryModal from '../components/game/RoundSummaryModal';
 import FinalResultModal from '../components/game/FinalResultModal';
+import JoinFailedModal from '../components/game/JoinFailedModal';
 
 interface Player {
   clientId: string;
@@ -30,12 +32,16 @@ const RoomPage: React.FC = () => {
   const [maxRounds, setMaxRounds] = useState(3);
   const [currentDrawer, setCurrentDrawer] = useState<string | null>(null);
   const [roundSummary, setRoundSummary] = useState<{
-  correctUser: string | null;
-  word: string;
-  gainedScore: number;
-  players: Player[];
-} | null>(null);
+    correctUser: string | null;
+    word: string;
+    gainedScore: number;
+    players: Player[];
+  } | null>(null);
   const [finalResultVisible, setFinalResultVisible] = useState(false);
+
+  // 입장 실패 관련 상태
+  const [joinFailed, setJoinFailed] = useState(false);
+  const [joinFailedReason, setJoinFailedReason] = useState('');
 
   const canvasRef = useRef<any>(null);
   const socketConnected = useRef(false);
@@ -69,6 +75,11 @@ const RoomPage: React.FC = () => {
       setSocket(null);
     });
 
+    newSocket.on('room:joinFailed', ({ reason }) => {
+      setJoinFailedReason(reason);
+      setJoinFailed(true);
+    });
+
     newSocket.on('room:players', (players: Player[]) => {
       setPlayers(players);
     });
@@ -82,8 +93,8 @@ const RoomPage: React.FC = () => {
       setGameStatus('playing');
       const end = new Date(data.endTime).getTime();
       const now = Date.now();
-      const duration = Math.max(0, Math.floor((end - now) / 1000)); 
-      setTimeLeft(duration); 
+      const duration = Math.max(0, Math.floor((end - now) / 1000));
+      setTimeLeft(duration);
       setCurrentRound(data.round);
       setMaxRounds(data.maxRounds || 3);
       setCurrentDrawer(data.drawer.userId);
@@ -105,26 +116,26 @@ const RoomPage: React.FC = () => {
     });
 
     newSocket.on('roundSummary', (data) => {
-  setGameStatus('summary');
-  setRoundSummary({
-    correctUser: data.correctUser,
-    word: data.word,
-    gainedScore: data.gainedScore,
-    players: data.players, // ✅ 명확히 추가!
-  });
-  canvasRef.current?.clearCanvas();
-  setPlayers(data.players);
+      setGameStatus('summary');
+      setRoundSummary({
+        correctUser: data.correctUser,
+        word: data.word,
+        gainedScore: data.gainedScore,
+        players: data.players,
+      });
+      canvasRef.current?.clearCanvas();
+      setPlayers(data.players);
 
-  setTimeout(() => {
-    setRoundSummary(null);
-    if (currentRound < maxRounds) {
-      setGameStatus('playing');
-    } else {
-      setGameStatus('finished');
-      setFinalResultVisible(true);
-    }
-  }, 5000);
-});
+      setTimeout(() => {
+        setRoundSummary(null);
+        if (currentRound < maxRounds) {
+          setGameStatus('playing');
+        } else {
+          setGameStatus('finished');
+          setFinalResultVisible(true);
+        }
+      }, 5000);
+    });
 
     newSocket.on('chat', ({ userId: senderId, message }) => {
       setPlayers((prev) =>
@@ -150,7 +161,7 @@ const RoomPage: React.FC = () => {
   useEffect(() => {
     if (gameStatus !== 'playing') return;
     const interval = setInterval(() => {
-      setTimeLeft(prev => {
+      setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(interval);
           return 0;
@@ -193,20 +204,56 @@ const RoomPage: React.FC = () => {
     navigate('/');
   };
 
+  // 입장 실패 시 모달만 띄우고 방 UI 숨김
+  if (joinFailed) {
+    return (
+      <JoinFailedModal
+        reason={joinFailedReason}
+        onConfirm={() => {
+          setJoinFailed(false);
+          navigate('/');
+        }}
+      />
+    );
+  }
+
   return (
-    <div style={{ width: '100vw', height: '100vh', minHeight: 600, background: '#fafafa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        minHeight: 600,
+        background: '#fafafa',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
+      {/* 현재 라운드 크게 표시 */}
+      <div
+        style={{
+          fontSize: 48,
+          fontWeight: 'bold',
+          marginTop: 24,
+          color: '#1976d2',
+          userSelect: 'none',
+        }}
+      >
+        {currentRound > 0 ? `ROUND ${currentRound}` : ''}
+      </div>
+
       <RoundSummaryModal
-  isVisible={!!roundSummary}
-  onClose={() => {
-    setRoundSummary(null);
-    setGameStatus('playing');
-  }}
-  round={currentRound}
-  word={roundSummary?.word || ''}
-  correctUser={roundSummary?.correctUser || null}
-  gainedScore={roundSummary?.gainedScore || 0}
-  players={roundSummary?.players || []}
-/>
+        isVisible={!!roundSummary}
+        onClose={() => {
+          setRoundSummary(null);
+          setGameStatus('playing');
+        }}
+        round={currentRound}
+        word={roundSummary?.word || ''}
+        correctUser={roundSummary?.correctUser || null}
+        gainedScore={roundSummary?.gainedScore || 0}
+        players={roundSummary?.players || []}
+      />
 
       <FinalResultModal
         isVisible={finalResultVisible}
@@ -224,35 +271,92 @@ const RoomPage: React.FC = () => {
         onLeave={handleLeaveRoom}
       />
 
-      <div style={{ position: 'absolute', top: 24, right: 36, zIndex: 10, display: 'flex', gap: 12 }}>
-        {Array.isArray(players) && players.find(p => p.userId === localStorage.getItem('userId') && p.isHost) && (
-  <button
-    onClick={startGame}
-    disabled={gameStatus === 'playing'}
-            style={{
-              padding: '10px 24px',
-              background: gameStatus === 'playing' ? '#9e9e9e' : '#1976d2',
-              color: '#fff',
-              border: 'none',
-              borderRadius: 8,
-              cursor: gameStatus === 'playing' ? 'not-allowed' : 'pointer',
-              opacity: gameStatus === 'playing' ? 0.6 : 1,
-            }}
-          >
-            게임 시작
-          </button>
-        )}
-        <button onClick={handleLeaveRoom} style={{ padding: '10px 24px', background: '#e53935', color: '#fff', border: 'none', borderRadius: 8 }}>나가기</button>
+      <div
+        style={{
+          position: 'absolute',
+          top: 24,
+          right: 36,
+          zIndex: 10,
+          display: 'flex',
+          gap: 12,
+        }}
+      >
+        {Array.isArray(players) &&
+          players.find(
+            (p) => p.userId === localStorage.getItem('userId') && p.isHost,
+          ) && (
+            <button
+              onClick={startGame}
+              disabled={gameStatus === 'playing'}
+              style={{
+                padding: '10px 24px',
+                background: gameStatus === 'playing' ? '#9e9e9e' : '#1976d2',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 8,
+                cursor: gameStatus === 'playing' ? 'not-allowed' : 'pointer',
+                opacity: gameStatus === 'playing' ? 0.6 : 1,
+              }}
+            >
+              게임 시작
+            </button>
+          )}
+        <button
+          onClick={handleLeaveRoom}
+          style={{
+            padding: '10px 24px',
+            background: '#e53935',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+          }}
+        >
+          나가기
+        </button>
       </div>
 
-      <div style={{ width: '100%', maxWidth: 1400, display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 32, marginRight: 300 }}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 1400,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginTop: 32,
+          marginRight: 300,
+        }}
+      >
         <div style={{ flex: 1 }} />
 
-        <div style={{ width: 320, height: 60, background: '#eee', borderRadius: '12px 0 0 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 22 }}>
+        <div
+          style={{
+            width: 320,
+            height: 60,
+            background: '#eee',
+            borderRadius: '12px 0 0 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: 22,
+          }}
+        >
           방 코드: {roomId}
         </div>
 
-        <div style={{ width: 320, height: 60, background: '#eee', borderRadius: '0 12px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 22 }}>
+        <div
+          style={{
+            width: 320,
+            height: 60,
+            background: '#eee',
+            borderRadius: '0 12px 12px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: 22,
+          }}
+        >
           {gameStatus === 'playing' ? (
             <>
               제시어: {currentDrawer === localStorage.getItem('userId') ? currentWord : '???'} / ⏱ {timeLeft}s
@@ -261,35 +365,80 @@ const RoomPage: React.FC = () => {
             <>게임 시작까지 {countdown}초</>
           ) : gameStatus === 'summary' && roundSummary ? (
             <>
-              정답: {roundSummary.word} / 🎯 {roundSummary.correctUser ? `${roundSummary.correctUser} +${roundSummary.gainedScore}` : '아무도 맞추지 못했어요'}
+              정답: {roundSummary.word} {' '}
+              {roundSummary.correctUser ? `${roundSummary.correctUser} +${roundSummary.gainedScore}` : ''}
             </>
-          ) : <>대기 중...</>}
+          ) : (
+            <>대기 중...</>
+          )}
         </div>
 
         <div style={{ flex: 1 }} />
       </div>
 
-      <div style={{ width: '100%', maxWidth: 1400, flex: 1, display: 'flex', position: 'relative', margin: '0 auto' }}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 1400,
+          flex: 1,
+          display: 'flex',
+          position: 'relative',
+          margin: '0 auto',
+        }}
+      >
         <div style={{ flex: 1, marginRight: 300 }}>
-          <Canvas ref={canvasRef} socket={socket} currentDrawer={currentDrawer} roomId={roomId || ''} />
+          <Canvas
+            ref={canvasRef}
+            socket={socket}
+            currentDrawer={currentDrawer}
+            roomId={roomId || ''}
+          />
         </div>
         <PlayerList players={players} />
       </div>
 
-      <div style={{ width: '100%', maxWidth: 1400, display: 'flex', marginBottom: 100 }}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 1400,
+          display: 'flex',
+          marginBottom: 100,
+        }}
+      >
         <form
           onSubmit={handleInput}
-          style={{ flex: 1, display: 'flex', marginRight: 300, padding: '0 16px', boxSizing: 'border-box' }}
+          style={{
+            flex: 1,
+            display: 'flex',
+            marginRight: 300,
+            padding: '0 16px',
+            boxSizing: 'border-box',
+          }}
         >
           <input
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             placeholder="채팅을 입력하세요..."
-            style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #ccc', fontSize: 16, marginRight: 8 }}
+            style={{
+              flex: 1,
+              padding: '12px',
+              borderRadius: 8,
+              border: '1px solid #ccc',
+              fontSize: 16,
+              marginRight: 8,
+            }}
           />
           <button
             type="submit"
-            style={{ padding: '12px 24px', backgroundColor: '#1976d2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 'bold', cursor: 'pointer' }}
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#1976d2',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              fontWeight: 'bold',
+              cursor: 'pointer',
+            }}
           >
             전송
           </button>

@@ -153,7 +153,7 @@ const MainPage: React.FC = () => {
                 <div style={{ flex: 1 }}>
                   <b>{room.title}</b>
                   <div style={{ fontSize: '0.9em', color: '#666' }}>
-                    ({Array.isArray(room.players) ? room.players.length : 0} / {room.maxPlayers}명)
+                    {Array.isArray(room.players) ? room.players.length : 0} / {room.maxPlayers}명
                   </div>
                 </div>
                 <button 
