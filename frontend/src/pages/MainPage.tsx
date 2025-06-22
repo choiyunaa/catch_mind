@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import CreateRoomModal from '../components/room/CreateRoomModal';
 import PublicRoomList from '../components/room/PublicRoomList';
 import JoinFailedModal from '../components/game/JoinFailedModal';
+import JoinPrivateRoomModal from '../components/room/JoinPrivateRoomModal';
 
 interface Room {
   _id: string;
@@ -21,6 +22,7 @@ interface Room {
 
 const MainPage: React.FC = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isPrivateModalOpen, setIsPrivateModalOpen] = useState(false);
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -29,7 +31,6 @@ const MainPage: React.FC = () => {
   const navigate = useNavigate();
   const nickname = localStorage.getItem('nickname');
 
-  // 공개방 목록 조회
   const fetchRooms = async () => {
     try {
       const res = await fetch('http://localhost:9999/api/rooms/public');
@@ -46,16 +47,14 @@ const MainPage: React.FC = () => {
 
   useEffect(() => {
     fetchRooms();
-    const interval = setInterval(fetchRooms, 1000); // 1초마다 갱신
+    const interval = setInterval(fetchRooms, 1000);
     return () => clearInterval(interval);
   }, []);
 
-  // 방 입장
   const handleEnterRoom = (roomId: string) => {
     navigate(`/room/${roomId}`);
   };
 
-  // 방 생성
   const handleCreateRoom = async (roomData: {
     title: string;
     isPrivate: boolean;
@@ -98,13 +97,11 @@ const MainPage: React.FC = () => {
     }
   };
 
-  // 로그아웃
   const handleLogout = () => {
     localStorage.clear();
     navigate('/auth');
   };
 
-  // 빠른 입장 함수 (JoinFailedModal 활용)
   const handleQuickJoin = async () => {
     try {
       const token = localStorage.getItem('token');
@@ -150,7 +147,12 @@ const MainPage: React.FC = () => {
         />
       )}
 
-      {/* 타이틀 + 닉네임/로그아웃 한 줄 */}
+      <JoinPrivateRoomModal
+        isOpen={isPrivateModalOpen}
+        onClose={() => setIsPrivateModalOpen(false)}
+        onJoin={(roomId) => navigate(`/room/${roomId}`)}
+      />
+
       <div
         style={{
           width: '100%',
@@ -162,9 +164,7 @@ const MainPage: React.FC = () => {
           justifyContent: 'space-between',
           padding: '40px 0 0 0',
         }}
-      >
-        {/* 닉네임, 로그아웃 UI 자리 유지 */}
-      </div>
+      />
 
       <div style={{ maxWidth: 600, margin: '40px auto', padding: 24 }}>
         <div
@@ -241,7 +241,10 @@ const MainPage: React.FC = () => {
           >
             방 만들기
           </button>
-          <button style={{ flex: 1, padding: '16px 0' }} onClick={() => {}}>
+          <button
+            style={{ flex: 1, padding: '16px 0' }}
+            onClick={() => setIsPrivateModalOpen(true)}
+          >
             비밀방 들어가기
           </button>
         </div>

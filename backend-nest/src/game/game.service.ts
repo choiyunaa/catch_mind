@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Server } from 'socket.io';
+import words from './words';
 
 interface Player {
   clientId: string;
@@ -22,7 +23,7 @@ export class GameService {
   private maxRounds = 3;
   private isGameStarted = false;
   private correctUser: Player | null = null;
-private gainedScore: number = 0;
+  private gainedScore: number = 0;
 
   setIo(io: Server) {
     this.io = io;
@@ -66,88 +67,89 @@ private gainedScore: number = 0;
   }
 
   startGame(roomId: string, round: number = 1) {
-  this.roomId = roomId;
-  if (this.isGameStarted) return;
-  this.isGameStarted = true;
-  this.round = round;
+    this.roomId = roomId;
+    if (this.isGameStarted) return;
+    this.isGameStarted = true;
+    this.round = round;
 
-  this.io.to(this.roomId).emit('game:countdown');
+    this.io.to(this.roomId).emit('game:countdown');
 
-  setTimeout(() => this.startRound(), 3000);
-}
+    setTimeout(() => this.startRound(), 3000);
+  }
 
   private startRound() {
-  if (this.round > this.maxRounds) {
-    this.endGame();
-    return;
+    if (this.round > this.maxRounds) {
+      this.endGame();
+      return;
+    }
+
+    const players = this.players.get(this.roomId) || [];
+    if (players.length === 0) {
+      this.endGame();
+      return;
+    }
+
+    const drawerIndex = (this.round - 1) % players.length;
+    this.drawer = players[drawerIndex];
+    this.word = this.getRandomWord();
+    this.endTime = new Date(Date.now() + 120000); // 2분 후
+
+    this.io.to(this.roomId).emit('gameStarted', {
+      drawer: this.drawer,
+      endTime: this.endTime.toISOString(),
+      round: this.round,
+      maxRounds: this.maxRounds,
+    });
+
+    this.io.to(this.drawer.clientId).emit('word', {
+      userId: this.drawer.userId,
+      word: this.word,
+    });
+
+    // 2분 후 자동으로 라운드 종료
+    setTimeout(() => this.endRound(), 120000);
   }
-
-  const players = this.players.get(this.roomId) || [];
-  if (players.length === 0) {
-    this.endGame();
-    return;
-  }
-
-  const drawerIndex = (this.round - 1) % players.length;
-  this.drawer = players[drawerIndex];
-  this.word = this.getRandomWord();
-  this.endTime = new Date(Date.now() + 4000); // 2분 후
-
-  this.io.to(this.roomId).emit('gameStarted', {
-    drawer: this.drawer,
-    endTime: this.endTime.toISOString(),
-    round: this.round,
-    maxRounds: this.maxRounds,
-  });
-
-  this.io.to(this.drawer.clientId).emit('word', {
-    userId: this.drawer.userId,
-    word: this.word,
-  });
-
-  // ✅ 2분 후 자동으로 라운드 종료
-  setTimeout(() => this.endRound(), 4000);
-}
 
   private endRound() {
-  const players = this.getPlayers(this.roomId); // ✅ 현재 플레이어 목록 가져오기
+    const players = this.getPlayers(this.roomId);
 
-  // 라운드 요약 데이터 준비
-  this.io.to(this.roomId).emit('roundSummary', {
-    correctUser: this.correctUser?.nickname || null,
-    word: this.word,
-    gainedScore: this.gainedScore,
-    players,
-  });
+    // 라운드 요약 데이터 준비
+    this.io.to(this.roomId).emit('roundSummary', {
+      correctUser: this.correctUser?.nickname || null,
+      word: this.word,
+      gainedScore: this.gainedScore,
+      players,
+    });
 
-  // 정답자 초기화
-  this.correctUser = null;
-  this.gainedScore = 0;
+    // 정답자 초기화
+    this.correctUser = null;
+    this.gainedScore = 0;
 
-  // 5초 후 다음 라운드 시작
-  setTimeout(() => {
-    this.round++;
-    if (this.round <= this.maxRounds) {
-      this.startRound();
-    } else {
-      this.endGame();
-    }
-  }, 5000);
-}
-
-handleCorrectAnswer(userId: string) {
-  const players = this.players.get(this.roomId);
-  const correctPlayer = players?.find(p => p.userId === userId);
-  if (correctPlayer) {
-    const score = 100;
-    correctPlayer.score += score;
-
-    this.correctUser = correctPlayer;
-    this.gainedScore = score;
-
-    this.endRound();
+    // 5초 후 다음 라운드 시작
+    setTimeout(() => {
+      this.round++;
+      if (this.round <= this.maxRounds) {
+        this.startRound();
+      } else {
+        this.endGame();
+      }
+    }, 5000);
   }
-}
+
+  handleCorrectAnswer(userId: string) {
+    const players = this.players.get(this.roomId);
+    const correctPlayer = players?.find(p => p.userId === userId);
+    if (correctPlayer) {
+      const score = 100;
+      correctPlayer.score += score;
+
+      this.correctUser = correctPlayer;
+      this.gainedScore = score;
+
+      this.endRound();
+    }
+  }
+
   private endGame() {
     this.isGameStarted = false;
     this.io.to(this.roomId).emit('gameEnd', {
@@ -156,8 +158,6 @@ handleCorrectAnswer(userId: string) {
   }
 
   private getRandomWord(): string {
-    const words = ['사과', '자동차', '컴퓨터', '축구', '바다'];
     return words[Math.floor(Math.random() * words.length)];
   }
-  
 }

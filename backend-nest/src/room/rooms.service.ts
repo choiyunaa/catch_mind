@@ -165,13 +165,13 @@ export class RoomsService {
 
     this.io.to(roomId).emit('gameStarted', {
       drawer,
-      endTime: new Date(Date.now() + 120000).toISOString(), // 2분 타이머
+      endTime: new Date(Date.now() + 5000).toISOString(),
       round: roomState.currentRound,
       maxRounds: roomState.maxRounds,
     });
     this.io.to(drawer.clientId).emit('word', { word, userId: drawer.userId });
 
-    const roundTimeout = setTimeout(() => this.endRound(roomId), 120000);
+    const roundTimeout = setTimeout(() => this.endRound(roomId), 5000);
     const updatedRoomState = this.roomStates.get(roomId);
     if (updatedRoomState) {
       updatedRoomState.roundTimeout = roundTimeout;
@@ -255,7 +255,6 @@ export class RoomsService {
     }
   }
 
-  // 빠른 입장용 함수
   async findAvailableRoom(): Promise<Room | null> {
     const rooms = await this.roomModel
       .find({
@@ -265,7 +264,6 @@ export class RoomsService {
       .lean()
       .exec();
 
-    // 플레이어 숫자 제한 3명, status = waiting 인 방만 선택
     for (const room of rooms) {
       const players = this.roomPlayers.get(room.roomId) || [];
       if (players.length < 3) {

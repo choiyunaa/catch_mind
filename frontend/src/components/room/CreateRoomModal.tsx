@@ -20,13 +20,13 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCr
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onCreateRoom({ title, isPrivate, maxPlayers });
-    // 제출 후 초기화
+
+    // 입력 초기화
     setTitle('');
     setIsPrivate(false);
     setMaxPlayers(4);
   };
 
-  // 모달이 닫혔으면 아무것도 렌더링하지 않음
   if (!isOpen) return null;
 
   return (
@@ -72,7 +72,7 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCr
                 checked={isPrivate}
                 onChange={(e) => setIsPrivate(e.target.checked)}
               />
-              비밀방
+              비밀방으로 만들기
             </label>
           </div>
 
@@ -85,6 +85,7 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCr
             >
               <option value={2}>2명</option>
               <option value={3}>3명</option>
+              <option value={4}>4명</option>
             </select>
           </div>
 
