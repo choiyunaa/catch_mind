@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import CreateRoomModal from '../components/room/CreateRoomModal';
 import PublicRoomList from '../components/room/PublicRoomList';
+import JoinFailedModal from '../components/game/JoinFailedModal';
 
 interface Room {
   _id: string;
@@ -23,6 +24,8 @@ const MainPage: React.FC = () => {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [joinFailed, setJoinFailed] = useState(false);
+  const [joinFailedReason, setJoinFailedReason] = useState('');
   const navigate = useNavigate();
   const nickname = localStorage.getItem('nickname');
 
@@ -101,8 +104,52 @@ const MainPage: React.FC = () => {
     navigate('/auth');
   };
 
+  // 빠른 입장 함수 (JoinFailedModal 활용)
+  const handleQuickJoin = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const userId = localStorage.getItem('userId');
+      const nickname = localStorage.getItem('nickname');
+
+      if (!token || !userId || !nickname) {
+        setJoinFailedReason('로그인이 필요합니다.');
+        setJoinFailed(true);
+        return;
+      }
+
+      const res = await fetch('http://localhost:9999/api/rooms/quick-join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ userId, nickname }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        setJoinFailedReason(errorData.message || '빠른 입장에 실패했습니다.');
+        setJoinFailed(true);
+        return;
+      }
+
+      const room = await res.json();
+      navigate(`/room/${room.roomId}`);
+    } catch (err: any) {
+      setJoinFailedReason(err.message || '빠른 입장에 실패했습니다.');
+      setJoinFailed(true);
+    }
+  };
+
   return (
     <div style={{ width: '100vw', minHeight: '100vh', background: '#f5f5f5' }}>
+      {joinFailed && (
+        <JoinFailedModal
+          reason={joinFailedReason}
+          onConfirm={() => setJoinFailed(false)}
+        />
+      )}
+
       {/* 타이틀 + 닉네임/로그아웃 한 줄 */}
       <div
         style={{
@@ -176,13 +223,22 @@ const MainPage: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 32 }}>
-          <button style={{ flex: 1, padding: '16px 0' }} onClick={() => (window.location.href = '/gallery')}>
+          <button
+            style={{ flex: 1, padding: '16px 0' }}
+            onClick={() => (window.location.href = '/gallery')}
+          >
             손맛미술관
           </button>
-          <button style={{ flex: 1, padding: '16px 0' }} onClick={() => {}}>
+          <button
+            style={{ flex: 1, padding: '16px 0' }}
+            onClick={handleQuickJoin}
+          >
             빠른 입장
           </button>
-          <button style={{ flex: 1, padding: '16px 0' }} onClick={() => setIsCreateModalOpen(true)}>
+          <button
+            style={{ flex: 1, padding: '16px 0' }}
+            onClick={() => setIsCreateModalOpen(true)}
+          >
             방 만들기
           </button>
           <button style={{ flex: 1, padding: '16px 0' }} onClick={() => {}}>

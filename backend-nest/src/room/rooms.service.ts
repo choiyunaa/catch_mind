@@ -31,60 +31,55 @@ export class RoomsService {
     }
   >();
 
-  // 정답자 및 점수 저장용 맵
   private lastCorrectUserId: Map<string, string | null> = new Map();
   private lastGainedScore: Map<string, number> = new Map();
 
   setIo(io: Server) {
     this.io = io;
   }
+
   getDrawer(roomId: string) {
     return this.roomStates.get(roomId)?.drawer;
   }
+
   async findPublicRooms(): Promise<any[]> {
+    const rooms = await this.roomModel.find({ isPrivate: false }).lean().exec();
 
-  // DB에서 모든 공개방 가져오기 (status 조건 삭제)
-  const rooms = await this.roomModel
-    .find({ isPrivate: false }) 
-    .lean()
-    .exec();
+    return rooms.map((room) => {
+      const players = this.roomPlayers.get(room.roomId) || [];
+      const isStarted = this.roomStates.get(room.roomId)?.isStarted;
+      const status = isStarted ? 'playing' : room.status;
 
-  return rooms.map((room) => {
-  const players = this.roomPlayers.get(room.roomId) || [];
-  const isStarted = this.roomStates.get(room.roomId)?.isStarted;
-  const status = isStarted ? 'playing' : room.status;
-
-  return {
-    ...room,
-    players,
-    status
-  };
-});
-}
-
+      return {
+        ...room,
+        players,
+        status,
+      };
+    });
+  }
 
   async createRoom(createRoomDto: CreateRoomDto): Promise<Room> {
-  const roomId = await this.generateRoomIdUnique();
-  const createdRoom = new this.roomModel({
-    ...createRoomDto,
-    roomId,
-    players: [],
-    status: RoomStatus.Waiting,
-    maxPlayers: 3,
-  });
-  return createdRoom.save();
-}
-
+    const roomId = await this.generateRoomIdUnique();
+    const createdRoom = new this.roomModel({
+      ...createRoomDto,
+      roomId,
+      players: [],
+      status: RoomStatus.Waiting,
+      maxPlayers: 3,
+    });
+    return createdRoom.save();
+  }
 
   addUserToRoom(roomId: string, userId: string, nickname: string, socketId: string) {
     const players = this.roomPlayers.get(roomId) || [];
     if (players.find((p) => p.userId === userId)) return;
 
-if (players.length >= 3) {
-  this.io.to(socketId).emit('room:joinFailed', { reason: '정원이 모두 찼습니다.' });
-  return;
-}
-
+    if (players.length >= 3) {
+      if (socketId && this.io) {
+        this.io.to(socketId).emit('room:joinFailed', { reason: '정원이 모두 찼습니다.' });
+      }
+      return;
+    }
 
     const newPlayer: Player = {
       clientId: socketId,
@@ -98,31 +93,29 @@ if (players.length >= 3) {
   }
 
   removeUserFromRoom(socketId: string): string | null {
-  for (const [roomId, players] of this.roomPlayers.entries()) {
-    const index = players.findIndex((p) => p.clientId === socketId);
-    if (index !== -1) {
-      const [removedPlayer] = players.splice(index, 1);
+    for (const [roomId, players] of this.roomPlayers.entries()) {
+      const index = players.findIndex((p) => p.clientId === socketId);
+      if (index !== -1) {
+        const [removedPlayer] = players.splice(index, 1);
 
-      if (players.length === 0) {
-        // 방에 아무도 없으면 메모리 정리 + DB에서도 삭제
-        this.roomPlayers.delete(roomId);
-        this.roomStates.delete(roomId);
-        this.lastCorrectUserId.delete(roomId);
-        this.lastGainedScore.delete(roomId);
+        if (players.length === 0) {
+          this.roomPlayers.delete(roomId);
+          this.roomStates.delete(roomId);
+          this.lastCorrectUserId.delete(roomId);
+          this.lastGainedScore.delete(roomId);
 
-        this.roomModel.deleteOne({ roomId }).exec(); // ← DB에서도 삭제
-        console.log(`[Room Deleted] No players left in ${roomId}`);
-      } else if (removedPlayer.isHost) {
-        players[0].isHost = true;
+          this.roomModel.deleteOne({ roomId }).exec();
+          console.log(`[Room Deleted] No players left in ${roomId}`);
+        } else if (removedPlayer.isHost) {
+          players[0].isHost = true;
+        }
+
+        this.roomPlayers.set(roomId, players);
+        return roomId;
       }
-
-      this.roomPlayers.set(roomId, players);
-      return roomId;
     }
+    return null;
   }
-  return null;
-}
-
 
   getPlayersInRoom(roomId: string): Player[] {
     return this.roomPlayers.get(roomId) || [];
@@ -133,20 +126,17 @@ if (players.length >= 3) {
   }
 
   startGame(roomId: string, round: number = 1) {
-  
-  this.roomStates.set(roomId, { isStarted: true, maxRounds: 3, currentRound: round });
-  
-    // 다시하기 시 상태 초기화
+    this.roomStates.set(roomId, { isStarted: true, maxRounds: 3, currentRound: round });
+
     this.lastCorrectUserId.delete(roomId);
     this.lastGainedScore.delete(roomId);
 
     const players = this.roomPlayers.get(roomId);
     if (players) {
-      players.forEach((p) => (p.score = 0)); // 점수 초기화
+      players.forEach((p) => (p.score = 0));
       this.roomPlayers.set(roomId, players);
     }
 
-    this.roomStates.set(roomId, { isStarted: true, maxRounds: 3, currentRound: round });
     this.io.to(roomId).emit('game:countdown');
     setTimeout(() => this.startRound(roomId), 3000);
   }
@@ -175,13 +165,13 @@ if (players.length >= 3) {
 
     this.io.to(roomId).emit('gameStarted', {
       drawer,
-      endTime: new Date(Date.now() + 5000).toISOString(),
+      endTime: new Date(Date.now() + 120000).toISOString(), // 2분 타이머
       round: roomState.currentRound,
       maxRounds: roomState.maxRounds,
     });
     this.io.to(drawer.clientId).emit('word', { word, userId: drawer.userId });
 
-    const roundTimeout = setTimeout(() => this.endRound(roomId), 5000);
+    const roundTimeout = setTimeout(() => this.endRound(roomId), 120000);
     const updatedRoomState = this.roomStates.get(roomId);
     if (updatedRoomState) {
       updatedRoomState.roundTimeout = roundTimeout;
@@ -210,11 +200,10 @@ if (players.length >= 3) {
     this.io.to(roomId).emit('roundSummary', {
       word: roomState.currentWord,
       players,
-      correctUser: correctUserNickname, // 닉네임 보내기
+      correctUser: correctUserNickname,
       gainedScore,
     });
 
-    // 상태 초기화
     this.lastCorrectUserId.delete(roomId);
     this.lastGainedScore.delete(roomId);
 
@@ -243,7 +232,6 @@ if (players.length >= 3) {
     if (correctPlayer && roomState && roomState.isStarted) {
       correctPlayer.score += 10;
 
-      // 정답자 및 점수 저장
       this.lastCorrectUserId.set(roomId, userId);
       this.lastGainedScore.set(roomId, 10);
 
@@ -265,5 +253,25 @@ if (players.length >= 3) {
       }
       if (!(await this.roomModel.findOne({ roomId }))) return roomId;
     }
+  }
+
+  // 빠른 입장용 함수
+  async findAvailableRoom(): Promise<Room | null> {
+    const rooms = await this.roomModel
+      .find({
+        isPrivate: false,
+        status: RoomStatus.Waiting,
+      })
+      .lean()
+      .exec();
+
+    // 플레이어 숫자 제한 3명, status = waiting 인 방만 선택
+    for (const room of rooms) {
+      const players = this.roomPlayers.get(room.roomId) || [];
+      if (players.length < 3) {
+        return room;
+      }
+    }
+    return null;
   }
 }
