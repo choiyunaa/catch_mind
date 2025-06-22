@@ -26,11 +26,9 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   handleConnection(client: Socket) {
-    console.log(`Game Client connected: ${client.id}`);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Game Client disconnected: ${client.id}`);
     const roomId = this.roomsService.removeUserFromRoom(client.id);
     if (roomId) {
       const players = this.roomsService.getPlayersInRoom(roomId);
@@ -55,24 +53,27 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
 
   @SubscribeMessage('startGame')
 handleStartGame(@MessageBody() data: { roomId: string; round: number }) {
-  console.log('서버에서 startGame 이벤트 받음:', data);
   this.roomsService.startGame(data.roomId, data.round);
   this.emitRoomListUpdate();
 }
 
 
   @SubscribeMessage('chat')
-  handleChat(
-    @MessageBody() data: { roomId: string; userId: string; message: string },
-  ) {
-    const { roomId, userId, message } = data;
-    this.server.to(roomId).emit('chat', { userId, message });
+handleChat(
+  @MessageBody() data: { roomId: string; userId: string; message: string },
+) {
+  const { roomId, userId, message } = data;
+  this.server.to(roomId).emit('chat', { userId, message });
 
-    const answer = this.roomsService.getCurrentWord(roomId);
-    if (message === answer) {
-      this.roomsService.handleCorrectAnswer(roomId, userId);
-    }
+  const answer = this.roomsService.getCurrentWord(roomId);
+  const drawer = this.roomsService.getDrawer(roomId); // 👈 추가
+
+  // ✨ drawer는 정답 처리 금지
+  if (message === answer && userId !== drawer?.userId) {
+    this.roomsService.handleCorrectAnswer(roomId, userId);
   }
+}
+
   
   @SubscribeMessage('draw')
   handleDraw(

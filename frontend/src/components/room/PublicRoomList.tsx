@@ -37,7 +37,6 @@ const PublicRoomList: React.FC<PublicRoomListProps> = ({ rooms, loading, error, 
         rooms.map((room) => {
           const isFull = room.players.length >= room.maxPlayers;
           const isPlaying = room.status === 'playing';
-          console.log('룸 상태:', room.roomId, room.status);
 
           const canJoin = room.status === 'waiting' && !isFull;
 

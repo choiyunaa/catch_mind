@@ -13,7 +13,7 @@ interface PlayerListProps {
   players?: Player[];
 }
 
-const MAX_SLOTS = 4;
+const MAX_SLOTS = 3;
 
 const PlayerList: React.FC<PlayerListProps> = ({ players }) => {
   const myUserId = localStorage.getItem('userId');

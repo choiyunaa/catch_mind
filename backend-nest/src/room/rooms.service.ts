@@ -38,10 +38,10 @@ export class RoomsService {
   setIo(io: Server) {
     this.io = io;
   }
-
+  getDrawer(roomId: string) {
+    return this.roomStates.get(roomId)?.drawer;
+  }
   async findPublicRooms(): Promise<any[]> {
-
-    console.log(`[findPublicRooms] roomStates keys:`, [...this.roomStates.keys()]);
 
   // DB에서 모든 공개방 가져오기 (status 조건 삭제)
   const rooms = await this.roomModel
@@ -56,8 +56,8 @@ export class RoomsService {
 
   return {
     ...room,
-    players,         // 서버의 최신 players로 덮어쓰기
-    status           // 이 줄이 반드시 ...room **뒤에** 있어야 함!
+    players,
+    status
   };
 });
 }
@@ -126,13 +126,9 @@ if (players.length >= 3) {
   }
 
   startGame(roomId: string, round: number = 1) {
-console.log('[startGame] before set:', roomId, this.roomStates.get(roomId));
   
   this.roomStates.set(roomId, { isStarted: true, maxRounds: 3, currentRound: round });
   
-  console.log('[startGame] after set:', roomId, this.roomStates.get(roomId));
-    console.log(`[startGame] roomId: ${roomId}, current roomStates:`, this.roomStates.get(roomId));
-
     // 다시하기 시 상태 초기화
     this.lastCorrectUserId.delete(roomId);
     this.lastGainedScore.delete(roomId);
