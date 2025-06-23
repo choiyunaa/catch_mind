@@ -91,20 +91,13 @@ const RoomPage: React.FC = () => {
     // 새로 추가: 방 전체 상태 업데이트 이벤트
     newSocket.on('room:update', (roomData) => {
       setPlayers(roomData.players || []);
-  setCurrentRound(roomData.currentRound || 0);
-  setMaxRounds(roomData.maxRounds || 3);
-  setCurrentDrawer(roomData.currentDrawer || null);
-  setGameStatus(roomData.status || 'waiting');
-  setCurrentWord(roomData.currentWord || '');
-
-      // 상태 변환
-      if (roomData.status === 'waiting') setGameStatus('waiting');
-      else if (roomData.status === 'countdown') setGameStatus('countdown');
-      else if (roomData.status === 'playing') setGameStatus('playing');
-      else if (roomData.status === 'summary') setGameStatus('summary');
-      else if (roomData.status === 'finished') setGameStatus('finished');
-      else setGameStatus('waiting');
-
+      setCurrentRound(roomData.currentRound || 0);
+      setMaxRounds(roomData.maxRounds || 3);
+      setCurrentDrawer(roomData.currentDrawer || null);
+      // gameStatus가 summary 또는 finished일 때는 상태를 덮어쓰지 않음
+      if (roomData.status && gameStatus !== 'summary' && gameStatus !== 'finished') {
+        setGameStatus(roomData.status);
+      }
       setCurrentWord(roomData.currentWord || '');
     });
 
@@ -158,7 +151,7 @@ const RoomPage: React.FC = () => {
           setGameStatus('finished');
           setFinalResultVisible(true);
         }
-      }, 5000);
+      }, 3000);
     });
 
     newSocket.on('chat', ({ userId: senderId, message }) => {
@@ -205,12 +198,24 @@ const RoomPage: React.FC = () => {
   }, [gameStatus, countdown]);
 
   const handleInput = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || !socket) return;
-    const userId = localStorage.getItem('userId');
-    socket.emit('chat', { roomId, userId, message: inputMessage });
-    setInputMessage('');
-  };
+  e.preventDefault();
+  if (!inputMessage.trim() || !socket) return;
+  const userId = localStorage.getItem('userId');
+  const trimmedMessage = inputMessage.trim();
+
+  // 채팅 보내기
+  socket.emit('chat', { roomId, userId, message: trimmedMessage });
+
+  // ✅ 정답 확인 후 서버에 알림 보내기
+  if (
+    trimmedMessage === currentWord && // 정답인지 확인
+    userId !== currentDrawer // 출제자 자신은 정답 맞추기 금지
+  ) {
+    socket.emit('correctAnswer', { roomId, userId });
+  }
+
+  setInputMessage('');
+};
 
   const startGame = () => {
     if (!socket) {
@@ -218,7 +223,6 @@ const RoomPage: React.FC = () => {
       return;
     }
     console.log('startGame 이벤트 전송:', { roomId, round: 1 });
-    setCurrentRound(1);
     socket.emit('startGame', { roomId, round: 1 });
     setFinalResultVisible(false);
   };
@@ -286,6 +290,7 @@ const RoomPage: React.FC = () => {
         isVisible={finalResultVisible}
         players={players}
         onRetry={() => {
+          if (socket) socket.emit('room:reset', { roomId });
           setGameStatus('waiting');
           setCurrentRound(0);
           setCurrentDrawer(null);
@@ -417,7 +422,7 @@ const RoomPage: React.FC = () => {
         <div style={{ flex: 1, marginRight: 300 }}>
           <Canvas socket={socket} currentDrawer={currentDrawer} roomId={roomId || ''} ref={canvasRef} />
         </div>
-        <PlayerList players={players} />
+        <PlayerList players={players} currentDrawer={currentDrawer} />
       </div>
 
       <div

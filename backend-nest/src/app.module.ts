@@ -4,12 +4,13 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { RoomsModule } from './room/rooms.module';
 import { AuthModule } from './auth/auth.module';
 import { GameGateway } from './game/game.gateway';
+import { GameModule } from './game/game.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRootAsync({
-      imports: [ConfigModule],
+      imports: [GameModule, ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('MONGO_URI'),
       }),
@@ -18,6 +19,5 @@ import { GameGateway } from './game/game.gateway';
     RoomsModule,
     AuthModule,
   ],
-  providers: [GameGateway],
 })
 export class AppModule {}

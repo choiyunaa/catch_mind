@@ -1,6 +1,6 @@
-// src/game/game.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Server } from 'socket.io';
+import { RoomsService } from '../room/rooms.service';
 
 interface Player {
   clientId: string;
@@ -12,7 +12,6 @@ interface Player {
 }
 
 interface GameState {
-  players: Player[];
   drawer: Player | null;
   word: string;
   endTime: Date | null;
@@ -28,51 +27,22 @@ interface GameState {
 
 @Injectable()
 export class GameService {
-  private io: Server;
-  private gameStates = new Map<string, GameState>(); // roomId -> GameState
+  constructor(
+    @Inject(forwardRef(() => RoomsService))
+    private readonly roomsService: RoomsService
+  ) {}
 
-  // 임시 단어 리스트 5개만
+  private io: Server;
+  private gameStates = new Map<string, GameState>();
+
   private readonly words = ['사과', '바나나', '강아지', '축구', '컴퓨터'];
 
   setIo(io: Server) {
     this.io = io;
   }
 
-  addPlayer(roomId: string, playerInfo: { clientId: string; userId: string; nickname: string }) {
-    const state = this.gameStates.get(roomId) || this.createNewGameState();
-    if (state.players.find(p => p.userId === playerInfo.userId)) return; // 중복 방지
-
-    const newPlayer: Player = {
-      ...playerInfo,
-      isHost: state.players.length === 0,
-      score: 0,
-    };
-
-    state.players.push(newPlayer);
-    this.gameStates.set(roomId, state);
-  }
-
-  removePlayerByClientId(clientId: string): { roomId: string; wasHost: boolean } | null {
-    for (const [roomId, state] of this.gameStates.entries()) {
-      const idx = state.players.findIndex(p => p.clientId === clientId);
-      if (idx !== -1) {
-        const [removed] = state.players.splice(idx, 1);
-        if (removed.isHost && state.players.length > 0) {
-          state.players[0].isHost = true;
-        }
-        // 플레이어 전부 나가면 상태 초기화
-        if (state.players.length === 0) {
-          this.clearGameState(roomId);
-        }
-        return { roomId, wasHost: removed.isHost };
-      }
-    }
-    return null;
-  }
-
   getPlayers(roomId: string): Player[] {
-    const state = this.gameStates.get(roomId);
-    return state ? state.players : [];
+    return this.roomsService.getPlayersInRoom(roomId);
   }
 
   getCurrentWord(roomId: string): string | null {
@@ -86,17 +56,25 @@ export class GameService {
       state = this.createNewGameState();
       this.gameStates.set(roomId, state);
     }
-
+    const players = this.getPlayers(roomId);
+    if (players.length < 2) {
+      this.io.to(roomId).emit('room:update', {
+        players,
+        currentRound: state.round,
+        maxRounds: state.maxRounds,
+        currentDrawer: null,
+        status: 'waiting',
+        currentWord: '',
+        message: '최소 2명 이상이어야 게임을 시작할 수 있습니다.',
+      });
+      return;
+    }
     if (state.isGameStarted) return;
-
     state.isGameStarted = true;
-    state.round = round;
+    state.round = 1;
     state.maxRounds = 3;
-
     this.gameStates.set(roomId, state);
-
     this.io.to(roomId).emit('game:countdown');
-
     if (state.countdownTimeout) clearTimeout(state.countdownTimeout);
     state.countdownTimeout = setTimeout(() => this.startRound(roomId), 3000);
   }
@@ -104,65 +82,64 @@ export class GameService {
   private startRound(roomId: string) {
     const state = this.gameStates.get(roomId);
     if (!state) return;
-
-    if (state.round > state.maxRounds) {
+    const players = this.getPlayers(roomId);
+    if (state.round > state.maxRounds || players.length === 0) {
       this.endGame(roomId);
       return;
     }
-
-    if (state.players.length === 0) {
-      this.endGame(roomId);
+    if (players.length < 2) {
+      state.isGameStarted = false;
+      this.io.to(roomId).emit('room:update', {
+        players,
+        currentRound: state.round,
+        maxRounds: state.maxRounds,
+        currentDrawer: null,
+        status: 'waiting',
+        currentWord: '',
+        message: '최소 2명 이상이어야 게임을 시작할 수 있습니다.',
+      });
       return;
     }
-
     state.isRoundActive = true;
-
-    const drawerIndex = (state.round - 1) % state.players.length;
-    state.drawer = state.players[drawerIndex];
+    const drawerIndex = (state.round - 1) % players.length;
+    state.drawer = players[drawerIndex];
     state.word = this.getRandomWord();
-    state.endTime = new Date(Date.now() + 120000); // 2분 타임아웃
-
+    state.endTime = new Date(Date.now() + 5000); // 🕐 5초
     this.io.to(roomId).emit('gameStarted', {
       drawer: state.drawer,
       endTime: state.endTime.toISOString(),
       round: state.round,
       maxRounds: state.maxRounds,
     });
-
     this.io.to(state.drawer.clientId).emit('word', {
       userId: state.drawer.userId,
       word: state.word,
     });
-
     if (state.roundTimeout) clearTimeout(state.roundTimeout);
     state.roundTimeout = setTimeout(() => {
-      if (state.isRoundActive) {
-        this.endRound(roomId);
-      }
-    }, 120000);
+      this.endRound(roomId);
+    }, 5000);
   }
 
   private endRound(roomId: string) {
     const state = this.gameStates.get(roomId);
     if (!state) return;
-    if (!state.isRoundActive) return;
-
+    const players = this.getPlayers(roomId);
     state.isRoundActive = false;
-
     this.io.to(roomId).emit('roundSummary', {
       correctUser: state.correctUser?.nickname || null,
       word: state.word,
       gainedScore: state.gainedScore,
-      players: state.players,
+      players,
     });
-
     state.correctUser = null;
     state.gainedScore = 0;
-
     if (state.roundTimeout) clearTimeout(state.roundTimeout);
     setTimeout(() => {
-      state.round++;
-      if (state.round <= state.maxRounds) {
+      const latestState = this.gameStates.get(roomId);
+      if (!latestState) return;
+      latestState.round++;
+      if (latestState.round <= latestState.maxRounds) {
         this.startRound(roomId);
       } else {
         this.endGame(roomId);
@@ -172,18 +149,14 @@ export class GameService {
 
   handleCorrectAnswer(roomId: string, userId: string) {
     const state = this.gameStates.get(roomId);
-    if (!state) return;
-    if (!state.isRoundActive) return;
-
-    const correctPlayer = state.players.find(p => p.userId === userId);
+    if (!state || !state.isRoundActive) return;
+    const players = this.getPlayers(roomId);
+    const correctPlayer = players.find(p => p.userId === userId);
     if (correctPlayer) {
-      const score = 100;
+      const score = 10;
       correctPlayer.score += score;
-
       state.correctUser = correctPlayer;
       state.gainedScore = score;
-
-      state.isRoundActive = false;
       this.endRound(roomId);
     }
   }
@@ -191,13 +164,12 @@ export class GameService {
   private endGame(roomId: string) {
     const state = this.gameStates.get(roomId);
     if (!state) return;
-
+    const players = this.getPlayers(roomId);
     state.isGameStarted = false;
     state.isRoundActive = false;
     this.io.to(roomId).emit('gameEnd', {
-      players: state.players,
+      players,
     });
-
     this.clearGameState(roomId);
   }
 
@@ -207,7 +179,6 @@ export class GameService {
 
   private createNewGameState(): GameState {
     return {
-      players: [],
       drawer: null,
       word: '',
       endTime: null,
@@ -222,5 +193,39 @@ export class GameService {
 
   private clearGameState(roomId: string) {
     this.gameStates.delete(roomId);
+  }
+
+  getDrawerUserId(roomId: string): string | null {
+    const state = this.gameStates.get(roomId);
+    return state?.drawer?.userId || null;
+  }
+
+  resetRoom(roomId: string) {
+    const players = this.getPlayers(roomId);
+    let state = this.gameStates.get(roomId);
+    if (!state) {
+      state = this.createNewGameState();
+      this.gameStates.set(roomId, state);
+    }
+    players.forEach(p => p.score = 0);
+    state.round = 1;
+    state.maxRounds = 3;
+    state.isGameStarted = false;
+    state.isRoundActive = false;
+    state.correctUser = null;
+    state.gainedScore = 0;
+    state.drawer = null;
+    state.word = '';
+    state.endTime = null;
+    if (state.roundTimeout) clearTimeout(state.roundTimeout);
+    if (state.countdownTimeout) clearTimeout(state.countdownTimeout);
+    this.io.to(roomId).emit('room:update', {
+      players,
+      currentRound: state.round,
+      maxRounds: state.maxRounds,
+      currentDrawer: null,
+      status: 'waiting',
+      currentWord: '',
+    });
   }
 }

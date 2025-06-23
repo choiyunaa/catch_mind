@@ -10,6 +10,8 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
+import { RoomsService } from '../room/rooms.service';
+import { Injectable } from '@nestjs/common';
 
 @WebSocketGateway({
   namespace: '/game',
@@ -19,21 +21,24 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @WebSocketServer()
   server: Server;
 
-  constructor(private readonly gameService: GameService) {}
+  constructor(
+    private readonly gameService: GameService,
+    private readonly roomsService: RoomsService,
+  ) {}
 
   afterInit(server: Server) {
     this.gameService.setIo(server);
   }
 
   handleConnection(client: Socket) {
-    // 필요하면 연결 시 처리
+    // 연결 시 로직 필요하면 추가
   }
 
   handleDisconnect(client: Socket) {
-    const removed = this.gameService.removePlayerByClientId(client.id);
-    if (removed) {
-      const players = this.gameService.getPlayers(removed.roomId);
-      this.server.to(removed.roomId).emit('room:players', players);
+    const removedRoomId = this.roomsService.removeUserFromRoom(client.id);
+    if (removedRoomId) {
+      const players = this.roomsService.getPlayersInRoom(removedRoomId);
+      this.server.to(removedRoomId).emit('room:players', players);
       this.emitRoomListUpdate();
     }
   }
@@ -44,10 +49,10 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     @ConnectedSocket() client: Socket,
   ) {
     const { roomId, userId, nickname } = data;
-    this.gameService.addPlayer(roomId, { clientId: client.id, userId, nickname });
+    this.roomsService.addUserToRoom(roomId, userId, nickname, client.id);
     client.join(roomId);
 
-    const players = this.gameService.getPlayers(roomId);
+    const players = this.roomsService.getPlayersInRoom(roomId);
     this.server.to(roomId).emit('room:players', players);
     this.emitRoomListUpdate();
   }
@@ -66,9 +71,9 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     this.server.to(roomId).emit('chat', { userId, message });
 
     const currentWord = this.gameService.getCurrentWord(roomId);
-    const drawer = this.gameService.getPlayers(roomId).find(p => p.isHost);
+    const drawerUserId = this.gameService.getDrawerUserId(roomId);
 
-    if (message === currentWord && userId !== drawer?.userId) {
+    if (message === currentWord && userId !== drawerUserId) {
       this.gameService.handleCorrectAnswer(roomId, userId);
     }
   }
@@ -81,8 +86,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
     client.broadcast.to(data.roomId).emit('draw', data.data);
   }
 
+  @SubscribeMessage('room:reset')
+  handleRoomReset(@MessageBody() data: { roomId: string }) {
+    this.gameService.resetRoom(data.roomId);
+    this.emitRoomListUpdate();
+  }
+
   private async emitRoomListUpdate() {
-    // 필요 시 roomsService 등을 활용하여 방 목록 업데이트
     this.server.emit('roomList', []);
   }
 }

@@ -11,11 +11,12 @@ export interface Player {
 
 interface PlayerListProps {
   players?: Player[];
+  currentDrawer?: string | null;
 }
 
 const MAX_SLOTS = 3;
 
-const PlayerList: React.FC<PlayerListProps> = ({ players }) => {
+const PlayerList: React.FC<PlayerListProps> = ({ players, currentDrawer }) => {
   const myUserId = localStorage.getItem('userId');
 
   const safePlayers = Array.isArray(players) ? players : [];
@@ -74,6 +75,7 @@ const PlayerList: React.FC<PlayerListProps> = ({ players }) => {
                   whiteSpace: 'nowrap'
                 }}>
                   {player.nickname}
+                  {currentDrawer === player.userId && ' ✏️'}
                   {player.isHost && ' (호스트)'}
                 </div>
                 <div style={{

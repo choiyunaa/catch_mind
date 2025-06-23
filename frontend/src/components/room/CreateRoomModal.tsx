@@ -15,7 +15,7 @@ interface CreateRoomModalProps {
 const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCreateRoom }) => {
   const [title, setTitle] = useState('');
   const [isPrivate, setIsPrivate] = useState(false);
-  const [maxPlayers, setMaxPlayers] = useState(4);
+  const [maxPlayers, setMaxPlayers] = useState(3);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

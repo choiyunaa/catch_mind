@@ -48,7 +48,10 @@ export class RoomsService {
     return rooms.map((room) => {
       const players = this.roomPlayers.get(room.roomId) || [];
       const isStarted = this.roomStates.get(room.roomId)?.isStarted;
-      const status = isStarted ? 'playing' : room.status;
+      let status: 'waiting' | 'playing' | 'finished' = room.status;
+      if (isStarted === true) status = 'playing';
+      else if (isStarted === false && players.length > 0) status = 'waiting';
+      else if (isStarted === false && players.length === 0) status = 'finished';
 
       return {
         ...room,
