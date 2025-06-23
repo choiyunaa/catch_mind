@@ -38,6 +38,7 @@ export class AuthService {
         message: '회원가입 성공',
         username: newUser.username,
         nickname: newUser.nickname,
+        userId: newUser._id,
         access_token: this.jwtService.sign(payload), // JWT 토큰 반환
       };
     } catch (error) {

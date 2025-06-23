@@ -67,6 +67,7 @@ const RoomPage: React.FC = () => {
     socketConnected.current = true;
 
     newSocket.on('connect', () => {
+      console.log('[join emit]', { roomId, userId, nickname });
       newSocket.emit('room:join', { roomId, userId, nickname });
     });
 

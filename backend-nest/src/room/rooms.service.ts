@@ -71,7 +71,8 @@ export class RoomsService {
   }
 
   addUserToRoom(roomId: string, userId: string, nickname: string, socketId: string) {
-    const players = this.roomPlayers.get(roomId) || [];
+    console.log('[addUserToRoom-call]', { roomId, userId, nickname, socketId });
+    let players = this.roomPlayers.get(roomId) || [];
     if (players.find((p) => p.userId === userId)) return;
 
     if (players.length >= 3) {
