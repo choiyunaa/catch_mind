@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom'; // 이거 추가
 
 interface Player {
   nickname: string;
@@ -13,6 +14,8 @@ interface FinalResultModalProps {
 }
 
 const FinalResultModal: React.FC<FinalResultModalProps> = ({ isVisible, players, onRetry, onLeave }) => {
+  const navigate = useNavigate(); // useNavigate 훅
+
   if (!isVisible) return null;
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
@@ -48,6 +51,21 @@ const FinalResultModal: React.FC<FinalResultModalProps> = ({ isVisible, players,
             padding: '12px 24px', borderRadius: 8,
             backgroundColor: '#1976d2', color: '#fff', border: 'none', fontWeight: 'bold'
           }}>다시하기</button>
+
+          {/* 여기서 손맛 미술관 버튼 추가 */}
+          <button
+            onClick={() => navigate('/gallery')}
+            style={{
+              padding: '12px 24px', borderRadius: 8,
+              backgroundColor: '#4caf50', // 초록색 느낌으로
+              color: '#fff',
+              border: 'none',
+              fontWeight: 'bold'
+            }}
+          >
+            손맛 미술관
+          </button>
+
           <button onClick={onLeave} style={{
             padding: '12px 24px', borderRadius: 8,
             backgroundColor: '#e53935', color: '#fff', border: 'none', fontWeight: 'bold'
