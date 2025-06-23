@@ -37,7 +37,7 @@ const RoomPage: React.FC = () => {
     word: string;
     gainedScore: number;
     players: Player[];
-    isLastRound?: boolean;  // 여기에 추가
+    isLastRound?: boolean;
   } | null>(null);
   const [finalResultVisible, setFinalResultVisible] = useState(false);
   const [joinFailed, setJoinFailed] = useState(false);
@@ -90,7 +90,6 @@ const RoomPage: React.FC = () => {
       if (roomData.status && gameStatus !== 'summary' && gameStatus !== 'finished') {
         setGameStatus(roomData.status);
       }
-      setCurrentWord(roomData.currentWord || '');
     });
 
     newSocket.on('game:countdown', () => {
@@ -129,13 +128,14 @@ const RoomPage: React.FC = () => {
       setRoundSummary({
         round: data.round,
         correctUser: data.correctUser,
-        word: data.word,
+        word: data.word,  // 빈 문자열 가능, 백엔드에서 비공개 처리함
         gainedScore: data.gainedScore,
         players: data.players,
-        isLastRound: data.isLastRound,  // 서버에서 받은 플래그 저장
+        isLastRound: data.isLastRound,
       });
       canvasRef.current?.clearCanvas();
       setPlayers(data.players);
+      setCurrentWord(''); // 요약 때 단어는 빈 문자열로 처리
     });
 
     newSocket.on('chat', ({ userId: senderId, message }) => {
@@ -181,7 +181,6 @@ const RoomPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [gameStatus, countdown]);
 
-  // ✅ 요약창 닫히고 다음 라운드 자동 시작 (isLastRound 플래그 활용)
   useEffect(() => {
     if (!roundSummary) return;
     const timer = setTimeout(() => {
@@ -194,7 +193,7 @@ const RoomPage: React.FC = () => {
         setGameStatus('finished');
         setFinalResultVisible(true);
       }
-    }, 3000);
+    }, 5000); // 3초에서 5초로 변경(백엔드 맞춤)
     return () => clearTimeout(timer);
   }, [roundSummary, socket, roomId]);
 
@@ -237,10 +236,9 @@ const RoomPage: React.FC = () => {
     );
   }
 
-  // 요약창에서 단어가 빈 문자열이면 숨기기
   const displayWord =
-    gameStatus === 'summary' && roundSummary?.word === ''
-      ? '???'
+    gameStatus === 'summary'
+      ? ''
       : gameStatus === 'playing' && currentDrawer === localStorage.getItem('userId')
       ? currentWord
       : gameStatus === 'playing'
@@ -248,7 +246,16 @@ const RoomPage: React.FC = () => {
       : '';
 
   return (
-    <div style={{ width: '100vw', height: '100vh', background: '#fafafa', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+    <div
+      style={{
+        width: '100vw',
+        height: '100vh',
+        background: '#fafafa',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}
+    >
       <div style={{ fontSize: 48, fontWeight: 'bold', marginTop: 24, color: '#1976d2' }}>
         {roundSummary ? `ROUND ${roundSummary.round}` : currentRound > 0 ? `ROUND ${currentRound}` : ''}
       </div>
@@ -284,24 +291,67 @@ const RoomPage: React.FC = () => {
       />
 
       <div style={{ position: 'absolute', top: 24, right: 36, zIndex: 10, display: 'flex', gap: 12 }}>
-        {players.find(p => p.userId === localStorage.getItem('userId') && p.isHost) && (
-          <button onClick={startGame} disabled={gameStatus === 'playing'} style={{ padding: '10px 24px', background: '#1976d2', color: '#fff', border: 'none', borderRadius: 8 }}>
+        {players.find((p) => p.userId === localStorage.getItem('userId') && p.isHost) && (
+          <button
+            onClick={startGame}
+            disabled={gameStatus === 'playing'}
+            style={{ padding: '10px 24px', background: '#1976d2', color: '#fff', border: 'none', borderRadius: 8 }}
+          >
             게임 시작
           </button>
         )}
-        <button onClick={handleLeaveRoom} style={{ padding: '10px 24px', background: '#e53935', color: '#fff', border: 'none', borderRadius: 8 }}>
+        <button
+          onClick={handleLeaveRoom}
+          style={{ padding: '10px 24px', background: '#e53935', color: '#fff', border: 'none', borderRadius: 8 }}
+        >
           나가기
         </button>
       </div>
 
-      <div style={{ width: '100%', maxWidth: 1400, display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 32, marginRight: 300 }}>
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 1400,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          marginTop: 32,
+          marginRight: 300,
+        }}
+      >
         <div style={{ flex: 1 }} />
-        <div style={{ width: 320, height: 60, background: '#eee', borderRadius: '12px 0 0 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 22 }}>
+        <div
+          style={{
+            width: 320,
+            height: 60,
+            background: '#eee',
+            borderRadius: '12px 0 0 12px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: 22,
+          }}
+        >
           방 코드: {roomId}
         </div>
-        <div style={{ width: 320, height: 60, background: '#eee', borderRadius: '0 12px 12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: 22 }}>
+        <div
+          style={{
+            width: 320,
+            height: 60,
+            background: '#eee',
+            borderRadius: '0 12px 12px 0',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: 22,
+          }}
+        >
           {gameStatus === 'playing' || gameStatus === 'summary' ? (
-            <>제시어: {displayWord} / ⏱ {timeLeft}s</>
+            <>
+              제시어: {displayWord} / ⏱ {timeLeft}s
+            </>
           ) : gameStatus === 'countdown' ? (
             <>게임 시작까지 {countdown}초</>
           ) : (
@@ -326,7 +376,17 @@ const RoomPage: React.FC = () => {
             placeholder="채팅을 입력하세요..."
             style={{ flex: 1, padding: '12px', borderRadius: 8, border: '1px solid #ccc', fontSize: 16, marginRight: 8 }}
           />
-          <button type="submit" style={{ padding: '12px 24px', backgroundColor: '#1976d2', color: 'white', border: 'none', borderRadius: 8, fontWeight: 'bold' }}>
+          <button
+            type="submit"
+            style={{
+              padding: '12px 24px',
+              backgroundColor: '#1976d2',
+              color: 'white',
+              border: 'none',
+              borderRadius: 8,
+              fontWeight: 'bold',
+            }}
+          >
             전송
           </button>
         </form>

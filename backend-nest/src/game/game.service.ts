@@ -34,7 +34,6 @@ export class GameService {
 
   private io: Server;
   private gameStates = new Map<string, GameState>();
-
   private readonly words = ['사과', '바나나', '강아지', '축구', '컴퓨터'];
 
   setIo(io: Server) {
@@ -56,6 +55,7 @@ export class GameService {
       state = this.createNewGameState();
       this.gameStates.set(roomId, state);
     }
+
     const players = this.getPlayers(roomId);
     if (players.length < 2) {
       this.io.to(roomId).emit('room:update', {
@@ -69,100 +69,92 @@ export class GameService {
       });
       return;
     }
+
     if (state.isGameStarted) return;
+
     state.isGameStarted = true;
-    state.round = 1;  // 여기서 라운드 시작 초기화
+    state.round = 1;
     state.maxRounds = 3;
     this.gameStates.set(roomId, state);
+
     this.io.to(roomId).emit('game:countdown');
+
     if (state.countdownTimeout) clearTimeout(state.countdownTimeout);
     state.countdownTimeout = setTimeout(() => this.startRound(roomId), 3000);
   }
 
   startNextRound(roomId: string) {
-    this.startRound(roomId);
+    // 딜레이로 라운드 시작 조절
+    setTimeout(() => {
+      this.startRound(roomId);
+    }, 3000); // 요약 후 3초 기다리고 시작
   }
 
   private startRound(roomId: string) {
-  const state = this.gameStates.get(roomId);
-  if (!state) return;
-  const players = this.getPlayers(roomId);
+    const state = this.gameStates.get(roomId);
+    if (!state) return;
 
-  // 1. 게임 종료 조건 체크 (라운드 초과 or 인원 부족)
-  if (state.round > state.maxRounds || players.length < 2) {
-    this.endGame(roomId);
-    return;
-  }
-
-  // 2. 라운드 시작 준비
-  state.isRoundActive = true;
-  const drawerIndex = (state.round - 1) % players.length;
-  state.drawer = players[drawerIndex];
-
-  state.word = this.getRandomWord();
-  state.endTime = new Date(Date.now() + 5000);
-
-  // 3. 게임 시작 이벤트 emit
-  this.io.to(roomId).emit('gameStarted', {
-    drawer: state.drawer,
-    endTime: state.endTime.toISOString(),
-    round: state.round,
-    maxRounds: state.maxRounds,
-  });
-
-  this.io.to(state.drawer.clientId).emit('word', {
-    userId: state.drawer.userId,
-    word: state.word,
-  });
-
-  // 4. 타이머 세팅
-  if (state.roundTimeout) clearTimeout(state.roundTimeout);
-  state.roundTimeout = setTimeout(() => {
-    this.endRound(roomId);
-  }, 5000);
-}
-
-private endRound(roomId: string) {
-  const state = this.gameStates.get(roomId);
-  if (!state) return;
-
-  state.word = '';
-  const players = this.getPlayers(roomId);
-  state.isRoundActive = false;
-
-  const currentRound = state.round;
-
-  this.io.to(roomId).emit('roundSummary', {
-    round: currentRound,
-    correctUser: state.correctUser?.nickname || null,
-    word: '',
-    gainedScore: state.gainedScore,
-    players,
-  });
-
-  state.correctUser = null;
-  state.gainedScore = 0;
-
-  if (state.roundTimeout) clearTimeout(state.roundTimeout);
-
-  setTimeout(() => {
-    const latestState = this.gameStates.get(roomId);
-    if (!latestState) return;
-
-    // 라운드 증가를 여기서 한다!
-    latestState.round++;
-
-    // 증가 후 종료 체크, 초과면 게임 종료
-    if (latestState.round > latestState.maxRounds) {
-      setTimeout(() => this.endGame(roomId), 5000);
+    const players = this.getPlayers(roomId);
+    if (state.round > state.maxRounds || players.length < 2) {
+      this.endGame(roomId);
       return;
     }
 
-    // 아니면 다음 라운드 시작
-    this.startRound(roomId);
-  }, 0);
-}
+    state.isRoundActive = true;
+    const drawerIndex = (state.round - 1) % players.length;
+    state.drawer = players[drawerIndex];
+    state.word = this.getRandomWord();
+    state.endTime = new Date(Date.now() + 5000); // 2분 후
 
+    this.io.to(roomId).emit('gameStarted', {
+      drawer: state.drawer,
+      endTime: state.endTime.toISOString(),
+      round: state.round,
+      maxRounds: state.maxRounds,
+    });
+
+    this.io.to(state.drawer.clientId).emit('word', {
+      userId: state.drawer.userId,
+      word: state.word,
+    });
+
+    if (state.roundTimeout) clearTimeout(state.roundTimeout);
+    state.roundTimeout = setTimeout(() => {
+      this.endRound(roomId);
+    }, 5000);
+  }
+
+  private endRound(roomId: string) {
+    const state = this.gameStates.get(roomId);
+    if (!state) return;
+
+    state.isRoundActive = false;
+    const players = this.getPlayers(roomId);
+    const currentRound = state.round;
+
+    this.io.to(roomId).emit('roundSummary', {
+      round: currentRound,
+      correctUser: state.correctUser?.nickname || null,
+      word: '', // 비공개로 처리
+      gainedScore: state.gainedScore,
+      players,
+    });
+
+    state.correctUser = null;
+    state.gainedScore = 0;
+    state.word = '';
+
+    if (state.roundTimeout) clearTimeout(state.roundTimeout);
+
+    // 라운드 증가는 여기서
+    state.round++;
+
+    if (state.round > state.maxRounds) {
+      setTimeout(() => this.endGame(roomId), 3000); // 결과 3초 후 종료
+    } else {
+      this.startNextRound(roomId); // 요약 후 다음 라운드 시작
+    }
+  }
 
   handleCorrectAnswer(roomId: string, userId: string) {
     const state = this.gameStates.get(roomId);
@@ -178,7 +170,6 @@ private endRound(roomId: string) {
       state.gainedScore = score;
 
       if (state.roundTimeout) clearTimeout(state.roundTimeout);
-
       this.endRound(roomId);
     }
   }
@@ -189,9 +180,8 @@ private endRound(roomId: string) {
     const players = this.getPlayers(roomId);
     state.isGameStarted = false;
     state.isRoundActive = false;
-    this.io.to(roomId).emit('gameEnd', {
-      players,
-    });
+
+    this.io.to(roomId).emit('gameEnd', { players });
     this.clearGameState(roomId);
   }
 
@@ -229,6 +219,7 @@ private endRound(roomId: string) {
       state = this.createNewGameState();
       this.gameStates.set(roomId, state);
     }
+
     players.forEach(p => (p.score = 0));
     state.round = 1;
     state.maxRounds = 3;
@@ -239,8 +230,10 @@ private endRound(roomId: string) {
     state.drawer = null;
     state.word = '';
     state.endTime = null;
+
     if (state.roundTimeout) clearTimeout(state.roundTimeout);
     if (state.countdownTimeout) clearTimeout(state.countdownTimeout);
+
     this.io.to(roomId).emit('room:update', {
       players,
       currentRound: state.round,

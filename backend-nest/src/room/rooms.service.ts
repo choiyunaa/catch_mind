@@ -19,17 +19,14 @@ export class RoomsService {
 
   private io: Server;
   private roomPlayers: Map<string, Player[]> = new Map();
-  private roomStates = new Map<
-    string,
-    {
-      isStarted: boolean;
-      currentWord?: string;
-      maxRounds?: number;
-      currentRound?: number;
-      drawer?: Player;
-      roundTimeout?: NodeJS.Timeout;
-    }
-  >();
+  private roomStates = new Map<string, {
+    isStarted: boolean;
+    currentWord?: string;
+    maxRounds?: number;
+    currentRound?: number;
+    drawer?: Player;
+    roundTimeout?: NodeJS.Timeout;
+  }>();
 
   private lastCorrectUserId: Map<string, string | null> = new Map();
   private lastGainedScore: Map<string, number> = new Map();
@@ -152,9 +149,7 @@ export class RoomsService {
       !roomState ||
       !roomState.isStarted ||
       players.length === 0 ||
-      (roomState.currentRound !== undefined &&
-        roomState.maxRounds !== undefined &&
-        roomState.currentRound > roomState.maxRounds)
+      (roomState.currentRound && roomState.maxRounds && roomState.currentRound > roomState.maxRounds)
     ) {
       this.endGame(roomId);
       return;
@@ -164,34 +159,34 @@ export class RoomsService {
     const drawer = players[drawerIndex];
     const word = this.getRandomWord();
 
-    this.roomStates.set(roomId, { ...roomState, drawer, currentWord: word });
+    const updatedRoomState = {
+      ...roomState,
+      drawer,
+      currentWord: word,
+    };
+    this.roomStates.set(roomId, updatedRoomState);
 
     this.io.to(roomId).emit('gameStarted', {
       drawer,
-      endTime: new Date(Date.now() + 5000).toISOString(),
+      endTime: new Date(Date.now() + 120000).toISOString(),
       round: roomState.currentRound,
       maxRounds: roomState.maxRounds,
     });
+
     this.io.to(drawer.clientId).emit('word', { word, userId: drawer.userId });
 
-    const roundTimeout = setTimeout(() => this.endRound(roomId), 5000);
-    const updatedRoomState = this.roomStates.get(roomId);
-    if (updatedRoomState) {
-      updatedRoomState.roundTimeout = roundTimeout;
-      this.roomStates.set(roomId, updatedRoomState);
-    }
+    const roundTimeout = setTimeout(() => this.endRound(roomId), 120000);
+    updatedRoomState.roundTimeout = roundTimeout;
+    this.roomStates.set(roomId, updatedRoomState);
   }
 
   private endRound(roomId: string) {
     const roomState = this.roomStates.get(roomId);
     if (!roomState || !roomState.isStarted) return;
 
-    if (roomState.roundTimeout) {
-      clearTimeout(roomState.roundTimeout);
-    }
+    if (roomState.roundTimeout) clearTimeout(roomState.roundTimeout);
 
     const players = this.getPlayersInRoom(roomId);
-
     const correctUserId = this.lastCorrectUserId.get(roomId) || null;
     const gainedScore = this.lastGainedScore.get(roomId) || 0;
 
@@ -201,7 +196,7 @@ export class RoomsService {
         : null;
 
     this.io.to(roomId).emit('roundSummary', {
-      word: roomState.currentWord,
+      word: '',
       players,
       correctUser: correctUserNickname,
       gainedScore,
@@ -211,6 +206,7 @@ export class RoomsService {
     this.lastGainedScore.delete(roomId);
 
     roomState.currentRound = (roomState.currentRound ?? 1) + 1;
+    roomState.currentWord = undefined;
     this.roomStates.set(roomId, roomState);
 
     if (roomState.currentRound > (roomState.maxRounds ?? 3)) {
@@ -259,14 +255,7 @@ export class RoomsService {
   }
 
   async findAvailableRoom(): Promise<Room | null> {
-    const rooms = await this.roomModel
-      .find({
-        isPrivate: false,
-        status: RoomStatus.Waiting,
-      })
-      .lean()
-      .exec();
-
+    const rooms = await this.roomModel.find({ isPrivate: false, status: RoomStatus.Waiting }).lean().exec();
     for (const room of rooms) {
       const players = this.roomPlayers.get(room.roomId) || [];
       if (players.length < 3) {
