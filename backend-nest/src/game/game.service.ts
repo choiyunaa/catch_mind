@@ -103,7 +103,7 @@ export class GameService {
     const drawerIndex = (state.round - 1) % players.length;
     state.drawer = players[drawerIndex];
     state.word = this.getRandomWord();
-    state.endTime = new Date(Date.now() + 5000); // 2분 후
+    state.endTime = new Date(Date.now() + 10000); 
 
     this.io.to(roomId).emit('gameStarted', {
       drawer: state.drawer,
@@ -120,7 +120,7 @@ export class GameService {
     if (state.roundTimeout) clearTimeout(state.roundTimeout);
     state.roundTimeout = setTimeout(() => {
       this.endRound(roomId);
-    }, 5000);
+    }, 10000);
   }
 
   private endRound(roomId: string) {
