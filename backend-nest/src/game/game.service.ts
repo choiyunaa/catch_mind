@@ -84,7 +84,8 @@ export class GameService {
   }
 
   startNextRound(roomId: string) {
-    // 딜레이로 라운드 시작 조절
+    const state = this.gameStates.get(roomId);
+    if (!state) return;
     setTimeout(() => {
       this.startRound(roomId);
     }, 3000); // 요약 후 3초 기다리고 시작
@@ -132,28 +133,25 @@ export class GameService {
     const players = this.getPlayers(roomId);
     const currentRound = state.round;
 
+    const isLastRound = state.round >= state.maxRounds;
     this.io.to(roomId).emit('roundSummary', {
       round: currentRound,
       correctUser: state.correctUser?.nickname || null,
       word: state.word,
       gainedScore: state.gainedScore,
       players,
+      isLastRound,
     });
 
     state.correctUser = null;
     state.gainedScore = 0;
     state.word = '';
 
-    if (state.roundTimeout) clearTimeout(state.roundTimeout);
-
-    // 라운드 증가는 여기서
-    state.round++;
-
-    if (state.round > state.maxRounds) {
-      setTimeout(() => this.endGame(roomId), 3000); // 결과 3초 후 종료
-    } else {
-      this.startNextRound(roomId); // 요약 후 다음 라운드 시작
+    if (!isLastRound) {
+      state.round++;
     }
+
+    if (state.roundTimeout) clearTimeout(state.roundTimeout);
   }
 
   handleCorrectAnswer(roomId: string, userId: string) {

@@ -161,6 +161,7 @@ const RoomPage: React.FC = () => {
 
   useEffect(() => {
     if (gameStatus !== 'playing') return;
+    if (roundSummary) return;
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -171,7 +172,7 @@ const RoomPage: React.FC = () => {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [gameStatus]);
+  }, [gameStatus, roundSummary]);
 
   useEffect(() => {
     if (gameStatus !== 'countdown' || countdown <= 0) return;
@@ -193,7 +194,7 @@ const RoomPage: React.FC = () => {
         setGameStatus('finished');
         setFinalResultVisible(true);
       }
-    }, 5000); // 3초에서 5초로 변경(백엔드 맞춤)
+    }, 3000);
     return () => clearTimeout(timer);
   }, [roundSummary, socket, roomId]);
 
@@ -237,13 +238,14 @@ const RoomPage: React.FC = () => {
   }
 
   const displayWord =
-    gameStatus === 'summary'
+    roundSummary
       ? ''
       : gameStatus === 'playing' && currentDrawer === localStorage.getItem('userId')
       ? currentWord
       : gameStatus === 'playing'
       ? '???'
       : '';
+  const displayTime = roundSummary ? '' : timeLeft;
 
   return (
     <div
@@ -348,9 +350,11 @@ const RoomPage: React.FC = () => {
             fontSize: 22,
           }}
         >
-          {gameStatus === 'playing' || gameStatus === 'summary' ? (
+          {roundSummary ? (
+            <>요약 중...</>
+          ) : gameStatus === 'playing' || gameStatus === 'summary' ? (
             <>
-              제시어: {displayWord} / ⏱ {timeLeft}s
+              제시어: {displayWord} / ⏱ {displayTime}s
             </>
           ) : gameStatus === 'countdown' ? (
             <>게임 시작까지 {countdown}초</>
