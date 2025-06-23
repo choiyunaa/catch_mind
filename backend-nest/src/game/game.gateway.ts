@@ -11,7 +11,6 @@ import {
 import { Server, Socket } from 'socket.io';
 import { GameService } from './game.service';
 import { RoomsService } from '../room/rooms.service';
-import { Injectable } from '@nestjs/common';
 
 @WebSocketGateway({
   namespace: '/game',
@@ -31,7 +30,7 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   }
 
   handleConnection(client: Socket) {
-    // 연결 시 로직 필요하면 추가
+    // 연결 시 필요한 로직 있으면 작성
   }
 
   handleDisconnect(client: Socket) {
@@ -60,6 +59,13 @@ export class GameGateway implements OnGatewayInit, OnGatewayConnection, OnGatewa
   @SubscribeMessage('startGame')
   handleStartGame(@MessageBody() data: { roomId: string; round: number }) {
     this.gameService.startGame(data.roomId, data.round);
+    this.emitRoomListUpdate();
+  }
+
+  // public 메서드 호출하도록 바꿔야 하니 이름 맞춤
+  @SubscribeMessage('startNextRound')
+  handleStartNextRound(@MessageBody() data: { roomId: string }) {
+    this.gameService.startNextRound(data.roomId);
     this.emitRoomListUpdate();
   }
 
