@@ -261,17 +261,17 @@ const RoomPage: React.FC = () => {
       </div>
 
       <RoundSummaryModal
-        isVisible={!!roundSummary}
-        onClose={() => {
-          setRoundSummary(null);
-          setGameStatus('playing');
-        }}
-        round={roundSummary?.round || currentRound}
-        word={roundSummary?.word || ''}
-        correctUser={roundSummary?.correctUser || null}
-        gainedScore={roundSummary?.gainedScore || 0}
-        players={roundSummary?.players || []}
-      />
+  isVisible={!!roundSummary}
+  onClose={() => {
+    setRoundSummary(null);
+    setGameStatus('playing');
+  }}
+  round={roundSummary?.round || currentRound}
+  word={roundSummary?.word || currentWord}  // 빈 문자열이면 currentWord로 대체
+  correctUser={roundSummary?.correctUser || null}
+  gainedScore={roundSummary?.gainedScore || 0}
+  players={roundSummary?.players || []}
+/>
 
       <FinalResultModal
         isVisible={finalResultVisible}

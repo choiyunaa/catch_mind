@@ -135,7 +135,7 @@ export class GameService {
     this.io.to(roomId).emit('roundSummary', {
       round: currentRound,
       correctUser: state.correctUser?.nickname || null,
-      word: '', // 비공개로 처리
+      word: state.word,
       gainedScore: state.gainedScore,
       players,
     });
