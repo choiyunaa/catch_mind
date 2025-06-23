@@ -180,13 +180,13 @@ const MainPage: React.FC = () => {
             style={{
               textAlign: 'center',
               margin: 0,
-              fontSize: 40,
+              fontSize: 30,
               fontWeight: 900,
               color: '#222',
               flex: 'none',
             }}
           >
-            Catch Mind
+            천하제일 그림일짱 되기
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, height: 56 }}>
             {nickname && (

@@ -24,7 +24,7 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCr
     // 입력 초기화
     setTitle('');
     setIsPrivate(false);
-    setMaxPlayers(4);
+    setMaxPlayers(3);
   };
 
   if (!isOpen) return null;
@@ -85,7 +85,6 @@ const CreateRoomModal: React.FC<CreateRoomModalProps> = ({ isOpen, onClose, onCr
             >
               <option value={2}>2명</option>
               <option value={3}>3명</option>
-              <option value={4}>4명</option>
             </select>
           </div>
 
