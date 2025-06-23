@@ -86,9 +86,7 @@ export class GameService {
   startNextRound(roomId: string) {
     const state = this.gameStates.get(roomId);
     if (!state) return;
-    setTimeout(() => {
-      this.startRound(roomId);
-    }, 3000); // 요약 후 3초 기다리고 시작
+    this.startRound(roomId);
   }
 
   private startRound(roomId: string) {
