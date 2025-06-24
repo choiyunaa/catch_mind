@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom'; // 이거 추가
+import { useNavigate } from 'react-router-dom';
 
 interface Player {
   nickname: string;
@@ -11,10 +11,17 @@ interface FinalResultModalProps {
   players: Player[];
   onRetry: () => void;
   onLeave: () => void;
+  roomId: string; // ✅ roomId 추가
 }
 
-const FinalResultModal: React.FC<FinalResultModalProps> = ({ isVisible, players, onRetry, onLeave }) => {
-  const navigate = useNavigate(); // useNavigate 훅
+const FinalResultModal: React.FC<FinalResultModalProps> = ({
+  isVisible,
+  players,
+  onRetry,
+  onLeave,
+  roomId, // ✅ 여기서 roomId를 받음
+}) => {
+  const navigate = useNavigate();
 
   if (!isVisible) return null;
 
@@ -52,12 +59,11 @@ const FinalResultModal: React.FC<FinalResultModalProps> = ({ isVisible, players,
             backgroundColor: '#1976d2', color: '#fff', border: 'none', fontWeight: 'bold'
           }}>다시하기</button>
 
-          {/* 여기서 손맛 미술관 버튼 추가 */}
           <button
-            onClick={() => navigate('/Lookdraw')}
+            onClick={() => navigate(`/lookdraw/${roomId}`)} // ✅ roomId 사용 가능
             style={{
               padding: '12px 24px', borderRadius: 8,
-              backgroundColor: '#4caf50', 
+              backgroundColor: '#4caf50',
               color: '#fff',
               border: 'none',
               fontWeight: 'bold'

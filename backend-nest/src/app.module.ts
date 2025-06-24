@@ -5,12 +5,13 @@ import { RoomsModule } from './room/rooms.module';
 import { AuthModule } from './auth/auth.module';
 import { GameGateway } from './game/game.gateway';
 import { GameModule } from './game/game.module';
+import { LookDrawModule } from './lookdraw/lookdraw.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     MongooseModule.forRootAsync({
-      imports: [GameModule, ConfigModule],
+      imports: [LookDrawModule, GameModule, ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         uri: configService.get<string>('MONGO_URI'),
       }),

@@ -279,6 +279,7 @@ const RoomPage: React.FC = () => {
       <FinalResultModal
         isVisible={finalResultVisible}
         players={players}
+        roomId={roomId!}
         onRetry={() => {
           if (socket) socket.emit('room:reset', { roomId });
           setGameStatus('waiting');
