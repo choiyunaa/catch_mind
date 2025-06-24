@@ -1,3 +1,4 @@
+// src/pages/AuthPage.tsx
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -41,7 +42,6 @@ const AuthPage: React.FC = () => {
         });
 
         const data = await res.json();
-        console.log('Register response:', data); // 응답 데이터 확인용 로그
 
         if (res.ok) {
           localStorage.setItem('token', data.access_token);
@@ -53,7 +53,6 @@ const AuthPage: React.FC = () => {
           setMessage(data.message || '회원가입 실패');
         }
       } else {
-        // login mode
         if (!username || !password) {
           setMessage('ID와 비밀번호를 입력하세요.');
           setLoading(false);
@@ -67,7 +66,6 @@ const AuthPage: React.FC = () => {
         });
 
         const data = await res.json();
-        console.log('Login response:', data); // 응답 데이터 확인용 로그
 
         if (res.ok) {
           localStorage.setItem('token', data.access_token);
@@ -87,91 +85,144 @@ const AuthPage: React.FC = () => {
   };
 
   return (
-    <div
-      style={{
-        maxWidth: 400,
-        margin: '60px auto',
-        padding: 24,
-        border: '1px solid #eee',
-        borderRadius: 8,
-      }}
-    >
-      <h2 style={{ textAlign: 'center', marginBottom: 24 }}>
-        {mode === 'login' ? '로그인' : '회원가입'}
-      </h2>
-      <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: 16 }}>
+    <div style={styles.page}>
+      <div style={styles.box}>
+        <h2 style={styles.title}>{mode === 'login' ? '로그인' : '회원가입'}</h2>
+        <form onSubmit={handleSubmit} style={styles.form}>
           <input
             type="text"
             placeholder="ID"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
+            style={styles.input}
             autoComplete="username"
             required
+            disabled={loading}
           />
-        </div>
-        {mode === 'register' && (
-          <div style={{ marginBottom: 16 }}>
+          {mode === 'register' && (
             <input
               type="text"
               placeholder="닉네임"
               value={nickname}
               onChange={(e) => setNickname(e.target.value)}
-              style={{ width: '100%', padding: 8 }}
+              style={styles.input}
               autoComplete="nickname"
               required
+              disabled={loading}
             />
-          </div>
-        )}
-        <div style={{ marginBottom: 16 }}>
+          )}
           <input
             type="password"
             placeholder="비밀번호"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            style={{ width: '100%', padding: 8 }}
+            style={styles.input}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             required
+            disabled={loading}
           />
+          <button type="submit" style={styles.submitBtn} disabled={loading}>
+            {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
+          </button>
+        </form>
+
+        <div style={styles.toggleBox}>
+          <button
+            onClick={() => {
+              setMode(mode === 'login' ? 'register' : 'login');
+              reset();
+            }}
+            style={styles.toggleBtn}
+            disabled={loading}
+          >
+            {mode === 'login' ? '회원가입' : '로그인'}으로 전환
+          </button>
         </div>
-        <button
-          type="submit"
-          style={{ width: '100%', padding: 12 }}
-          disabled={loading}
-        >
-          {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
-        </button>
-      </form>
-      <div style={{ marginTop: 16, textAlign: 'center' }}>
-        <button
-          onClick={() => {
-            setMode(mode === 'login' ? 'register' : 'login');
-            reset();
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: '#007bff',
-            cursor: 'pointer',
-          }}
-        >
-          {mode === 'login' ? '회원가입' : '로그인'}으로 전환
-        </button>
+
+        {message && (
+          <div
+            style={{
+              ...styles.message,
+              color: message.includes('성공') ? '#43a047' : '#e53935',
+            }}
+          >
+            {message}
+          </div>
+        )}
       </div>
-      {message && (
-        <div
-          style={{
-            marginTop: 16,
-            color: message.includes('성공') ? 'green' : 'red',
-            textAlign: 'center',
-          }}
-        >
-          {message}
-        </div>
-      )}
     </div>
   );
+};
+
+const styles: { [key: string]: React.CSSProperties } = {
+  page: {
+    minHeight: '100vh',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    background: 'linear-gradient(135deg, #dae9f4, #7f9eb2)',
+    padding: 20,
+  },
+  box: {
+    width: 360,
+    padding: 32,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    boxShadow: '0 12px 24px rgba(39, 76, 94, 0.2)',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  title: {
+    marginBottom: 24,
+    color: '#274c5e',
+    fontSize: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  form: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 16,
+  },
+  input: {
+    padding: '12px 14px',
+    fontSize: 16,
+    borderRadius: 10,
+    border: '2px solid #77919d',
+    outline: 'none',
+    transition: 'border-color 0.3s ease',
+  },
+  submitBtn: {
+    padding: 14,
+    fontSize: 18,
+    borderRadius: 10,
+    backgroundColor: '#274c5e',
+    color: '#fff',
+    fontWeight: '700',
+    border: 'none',
+    cursor: 'pointer',
+    boxShadow: '0 6px 12px rgba(39, 76, 94, 0.3)',
+    transition: 'background-color 0.3s ease',
+  },
+  toggleBox: {
+    marginTop: 24,
+    textAlign: 'center',
+  },
+  toggleBtn: {
+    background: 'none',
+    border: 'none',
+    color: '#77919d',
+    fontWeight: '600',
+    cursor: 'pointer',
+    fontSize: 14,
+    textDecoration: 'underline',
+  },
+  message: {
+    marginTop: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    fontSize: 16,
+  },
 };
 
 export default AuthPage;

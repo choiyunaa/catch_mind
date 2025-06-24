@@ -28,6 +28,8 @@ const MainPage: React.FC = () => {
   const [error, setError] = useState('');
   const [joinFailed, setJoinFailed] = useState(false);
   const [joinFailedReason, setJoinFailedReason] = useState('');
+  const [logoutHover, setLogoutHover] = useState(false);
+  const [btnHover, setBtnHover] = useState<{ [key: string]: boolean }>({});
   const navigate = useNavigate();
   const nickname = localStorage.getItem('nickname');
 
@@ -62,14 +64,10 @@ const MainPage: React.FC = () => {
   }) => {
     try {
       const token = localStorage.getItem('token');
-      if (!token) {
-        setError('로그인이 필요합니다.');
-        return;
-      }
-
       const userId = localStorage.getItem('userId');
       const nickname = localStorage.getItem('nickname');
-      if (!userId || !nickname) {
+
+      if (!token || !userId || !nickname) {
         setError('로그인이 필요합니다.');
         return;
       }
@@ -80,15 +78,10 @@ const MainPage: React.FC = () => {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          ...roomData,
-          userId,
-          nickname,
-        }),
+        body: JSON.stringify({ ...roomData, userId, nickname }),
       });
 
       if (!res.ok) throw new Error('방 생성에 실패했습니다.');
-
       const room = await res.json();
       setIsCreateModalOpen(false);
       navigate(`/room/${room.roomId}`);
@@ -139,133 +132,196 @@ const MainPage: React.FC = () => {
   };
 
   return (
-    <div style={{ width: '100vw', minHeight: '100vh', background: '#f5f5f5' }}>
+    <div style={styles.page}>
       {joinFailed && (
         <JoinFailedModal
           reason={joinFailedReason}
           onConfirm={() => setJoinFailed(false)}
         />
       )}
-
       <JoinPrivateRoomModal
         isOpen={isPrivateModalOpen}
         onClose={() => setIsPrivateModalOpen(false)}
         onJoin={(roomId) => navigate(`/room/${roomId}`)}
       />
 
-      <div
-        style={{
-          width: '100%',
-          maxWidth: 700,
-          margin: '0 auto',
-          display: 'flex',
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '40px 0 0 0',
-        }}
-      />
-
-      <div style={{ maxWidth: 600, margin: '40px auto', padding: 24 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginBottom: 32,
-            gap: 24,
-          }}
-        >
-          <h1
-            style={{
-              textAlign: 'center',
-              margin: 0,
-              fontSize: 30,
-              fontWeight: 900,
-              color: '#222',
-              flex: 'none',
-            }}
-          >
-            천하제일 그림일짱 되기
-          </h1>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, height: 56 }}>
-            {nickname && (
-              <span
-                style={{
-                  fontWeight: 'bold',
-                  fontSize: 20,
-                  color: '#1976d2',
-                  lineHeight: '56px',
-                }}
-              >
-                닉네임: {nickname}
-              </span>
-            )}
-            <button
-              onClick={handleLogout}
-              style={{
-                height: 40,
-                padding: '0 20px',
-                background: '#e53935',
-                color: '#fff',
-                border: 'none',
-                borderRadius: 8,
-                fontWeight: 'bold',
-                fontSize: 16,
-                cursor: 'pointer',
-                boxShadow: '0 2px 8px #0002',
-                lineHeight: '40px',
-              }}
-            >
-              로그아웃
-            </button>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: 32 }}>
+      {/* 헤더 */}
+      <header style={styles.header}>
+        <h1 style={styles.logo}>🎨 그림짱이 된 일찐짱</h1>
+        <div style={styles.userBox}>
+          {nickname && (
+            <span style={styles.nickname}>👤 {nickname}</span>
+          )}
           <button
-            style={{ flex: 1, padding: '16px 0' }}
+            style={{
+              ...styles.logoutBtn,
+              ...(logoutHover ? styles.logoutBtnHover : {}),
+            }}
+            onMouseEnter={() => setLogoutHover(true)}
+            onMouseLeave={() => setLogoutHover(false)}
+            onClick={handleLogout}
+          >
+            로그아웃
+          </button>
+        </div>
+      </header>
+
+      {/* 메인 */}
+      <main style={styles.container}>
+        <div style={styles.buttonGrid}>
+          <button
+            style={{
+              ...styles.mainBtn,
+              ...(btnHover['gallery'] ? styles.mainBtnHover : {}),
+            }}
+            onMouseEnter={() => setBtnHover({ ...btnHover, gallery: true })}
+            onMouseLeave={() => setBtnHover({ ...btnHover, gallery: false })}
             onClick={() => (window.location.href = '/gallery')}
           >
-            손맛미술관
+            🖼 손맛미술관
           </button>
+
           <button
-            style={{ flex: 1, padding: '16px 0' }}
+            style={{
+              ...styles.mainBtn,
+              ...(btnHover['quickJoin'] ? styles.mainBtnHover : {}),
+            }}
+            onMouseEnter={() => setBtnHover({ ...btnHover, quickJoin: true })}
+            onMouseLeave={() => setBtnHover({ ...btnHover, quickJoin: false })}
             onClick={handleQuickJoin}
           >
-            빠른 입장
+            ⚡ 빠른 입장
           </button>
+
           <button
-            style={{ flex: 1, padding: '16px 0' }}
+            style={{
+              ...styles.mainBtn,
+              ...(btnHover['createRoom'] ? styles.mainBtnHover : {}),
+            }}
+            onMouseEnter={() => setBtnHover({ ...btnHover, createRoom: true })}
+            onMouseLeave={() => setBtnHover({ ...btnHover, createRoom: false })}
             onClick={() => setIsCreateModalOpen(true)}
           >
-            방 만들기
+            ➕ 방 만들기
           </button>
+
           <button
-            style={{ flex: 1, padding: '16px 0' }}
+            style={{
+              ...styles.mainBtn,
+              ...(btnHover['privateRoom'] ? styles.mainBtnHover : {}),
+            }}
+            onMouseEnter={() => setBtnHover({ ...btnHover, privateRoom: true })}
+            onMouseLeave={() => setBtnHover({ ...btnHover, privateRoom: false })}
             onClick={() => setIsPrivateModalOpen(true)}
           >
-            비밀방 들어가기
+            🔒 비밀방
           </button>
         </div>
 
-        <h2 style={{ marginBottom: 16 }}>공개 방 목록</h2>
-
-        <PublicRoomList
-          rooms={rooms}
-          loading={loading}
-          error={error}
-          onEnterRoom={handleEnterRoom}
-        />
+        <div style={{ marginTop: 40 }}>
+          <h2 style={styles.sectionTitle}>공개 방 목록</h2>
+          <PublicRoomList
+            rooms={rooms}
+            loading={loading}
+            error={error}
+            onEnterRoom={handleEnterRoom}
+          />
+        </div>
 
         <CreateRoomModal
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onCreateRoom={handleCreateRoom}
         />
-      </div>
+      </main>
     </div>
   );
+};
+
+const styles: { [key: string]: React.CSSProperties } = {
+  page: {
+    width: '100vw',
+    minHeight: '100vh',
+    backgroundColor: '#f9fbfc', // 거의 흰색에 가까운 연한 블루
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  header: {
+    width: '100%',
+    boxSizing: 'border-box',
+    padding: '24px 96px',
+    backgroundColor: '#dae9f4', // 밝고 부드러운 하늘색
+    color: '#274c5e', // 짙은 청록
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+  },
+  logo: {
+    margin: 0,
+    fontSize: 28,
+    fontWeight: 800,
+    letterSpacing: '1.5px',
+    color: '#274c5e',
+  },
+  userBox: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 28,
+  },
+  nickname: {
+    fontSize: 20,
+    fontWeight: 700,
+    color: '#274c5e',
+  },
+  logoutBtn: {
+    backgroundColor: '#77919d', // 중간 톤 블루그레이
+    color: '#fff',
+    border: 'none',
+    borderRadius: 8,
+    padding: '10px 20px',
+    cursor: 'pointer',
+    fontWeight: 700,
+    transition: 'background-color 0.3s ease',
+  },
+  logoutBtnHover: {
+    backgroundColor: '#7f9eb2', // 밝은 블루그레이
+  },
+  container: {
+    maxWidth: 1000,
+    width: '100%',
+    margin: '0 auto',
+    padding: '50px 36px',
+  },
+  buttonGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+    gap: 24,
+  },
+  mainBtn: {
+    backgroundColor: '#77919d', // 중간 톤 블루그레이
+    color: '#fff',
+    border: 'none',
+    borderRadius: 12,
+    padding: '20px 0',
+    fontSize: 18,
+    fontWeight: 700,
+    cursor: 'pointer',
+    boxShadow: '0 6px 10px rgba(119, 145, 157, 0.4)',
+    transition: 'background-color 0.3s ease, transform 0.15s ease',
+  },
+  mainBtnHover: {
+    backgroundColor: '#7f9eb2', // 밝은 블루그레이
+    transform: 'scale(1.05)',
+  },
+  sectionTitle: {
+    fontSize: 26,
+    fontWeight: 800,
+    marginBottom: 24,
+    borderBottom: '3px solid #77919d',
+    paddingBottom: 8,
+    color: '#274c5e',
+  },
 };
 
 export default MainPage;
