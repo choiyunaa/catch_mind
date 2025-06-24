@@ -54,16 +54,16 @@ const FinalResultModal: React.FC<FinalResultModalProps> = ({ isVisible, players,
 
           {/* 여기서 손맛 미술관 버튼 추가 */}
           <button
-            onClick={() => navigate('/gallery')}
+            onClick={() => navigate('/Lookdraw')}
             style={{
               padding: '12px 24px', borderRadius: 8,
-              backgroundColor: '#4caf50', // 초록색 느낌으로
+              backgroundColor: '#4caf50', 
               color: '#fff',
               border: 'none',
               fontWeight: 'bold'
             }}
           >
-            손맛 미술관
+            그림 보러가기
           </button>
 
           <button onClick={onLeave} style={{

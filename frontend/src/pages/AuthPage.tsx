@@ -160,8 +160,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
-    background: 'linear-gradient(135deg, #dae9f4, #7f9eb2)',
-    padding: 20,
+    backgroundImage: 'url("/backgroundimg.png")',
+    backgroundSize: 'cover',       // 이미지 꽉 채우기
+    backgroundPosition: 'center',  // 중앙 정렬
+    backgroundRepeat: 'no-repeat', // 반복 안함
   },
   box: {
     width: 360,
