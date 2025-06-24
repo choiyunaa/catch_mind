@@ -58,7 +58,7 @@ const RoomPage: React.FC = () => {
 
     if (socketConnected.current) return;
 
-    const newSocket = io('http://localhost:9999/game', {
+    const newSocket = io('http://localhost:9999', {
       transports: ['websocket'],
       auth: { token },
     });
