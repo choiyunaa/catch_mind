@@ -24,6 +24,7 @@ interface CanvasProps {
 
 export interface CanvasHandle {
   clearCanvas: () => void;
+  getCanvasImage: () => string | null;
 }
 
 const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentDrawer }, ref) => {
@@ -42,6 +43,10 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentD
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
       }
     },
+    getCanvasImage: () => {
+      if (!canvasRef.current) return null;
+      return canvasRef.current.toDataURL('image/png');
+    }
   }));
 
   useEffect(() => {

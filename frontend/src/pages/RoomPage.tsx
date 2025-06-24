@@ -7,6 +7,7 @@ import PlayerList from '../components/game/PlayerList';
 import RoundSummaryModal from '../components/game/RoundSummaryModal';
 import FinalResultModal from '../components/game/FinalResultModal';
 import JoinFailedModal from '../components/game/JoinFailedModal';
+import LookDrawGalleryModal from '../components/game/LookDrawGalleryModal';
 
 interface Player {
   clientId: string;
@@ -43,6 +44,13 @@ const RoomPage: React.FC = () => {
   const [joinFailed, setJoinFailed] = useState(false);
   const [joinFailedReason, setJoinFailedReason] = useState('');
 
+  // 그림 관련 상태
+  const [savedDrawings, setSavedDrawings] = useState<string[]>([]);
+  const [lookDrawVisible, setLookDrawVisible] = useState(false);
+
+  const [showMiniCanvasModal, setShowMiniCanvasModal] = useState(false);
+  const [miniCanvasImage, setMiniCanvasImage] = useState<string | null>(null);
+
   const canvasRef = useRef<any>(null);
   const socketConnected = useRef(false);
 
@@ -67,7 +75,6 @@ const RoomPage: React.FC = () => {
     socketConnected.current = true;
 
     newSocket.on('connect', () => {
-      console.log('[join emit]', { roomId, userId, nickname });
       newSocket.emit('room:join', { roomId, userId, nickname });
     });
 
@@ -129,14 +136,20 @@ const RoomPage: React.FC = () => {
       setRoundSummary({
         round: data.round,
         correctUser: data.correctUser,
-        word: data.word,  // 빈 문자열 가능, 백엔드에서 비공개 처리함
+        word: data.word,
         gainedScore: data.gainedScore,
         players: data.players,
         isLastRound: data.isLastRound,
       });
       canvasRef.current?.clearCanvas();
       setPlayers(data.players);
-      setCurrentWord(''); // 요약 때 단어는 빈 문자열로 처리
+      setCurrentWord('');
+
+      // 👉 그림 저장
+      if (canvasRef.current) {
+        const image = canvasRef.current.getCanvasImage();
+        setSavedDrawings((prev) => [...prev, image]);
+      }
     });
 
     newSocket.on('chat', ({ userId: senderId, message }) => {
@@ -161,8 +174,7 @@ const RoomPage: React.FC = () => {
   }, [roomId, navigate]);
 
   useEffect(() => {
-    if (gameStatus !== 'playing') return;
-    if (roundSummary) return;
+    if (gameStatus !== 'playing' || roundSummary) return;
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -188,9 +200,7 @@ const RoomPage: React.FC = () => {
     const timer = setTimeout(() => {
       setRoundSummary(null);
       if (!roundSummary.isLastRound) {
-        if (socket) {
-          socket.emit('startNextRound', { roomId });
-        }
+        socket?.emit('startNextRound', { roomId });
       } else {
         setGameStatus('finished');
         setFinalResultVisible(true);
@@ -203,95 +213,61 @@ const RoomPage: React.FC = () => {
     e.preventDefault();
     if (!inputMessage.trim() || !socket) return;
     const userId = localStorage.getItem('userId');
-    const trimmedMessage = inputMessage.trim();
-    socket.emit('chat', { roomId, userId, message: trimmedMessage });
-    if (trimmedMessage === currentWord && userId !== currentDrawer) {
+    socket.emit('chat', { roomId, userId, message: inputMessage.trim() });
+    if (inputMessage.trim() === currentWord && userId !== currentDrawer) {
       socket.emit('correctAnswer', { roomId, userId });
     }
     setInputMessage('');
   };
 
   const startGame = () => {
-    if (!socket) return;
-    socket.emit('startGame', { roomId, round: 1 });
+    socket?.emit('startGame', { roomId, round: 1 });
     setFinalResultVisible(false);
   };
 
   const handleLeaveRoom = () => {
-    if (socket) {
-      const userId = localStorage.getItem('userId');
-      socket.emit('leaveRoom', { roomId, userId });
-      socket.disconnect();
-    }
+    const userId = localStorage.getItem('userId');
+    socket?.emit('leaveRoom', { roomId, userId });
+    socket?.disconnect();
     navigate('/');
   };
 
   if (joinFailed) {
-    return (
-      <JoinFailedModal
-        reason={joinFailedReason}
-        onConfirm={() => {
-          setJoinFailed(false);
-          navigate('/');
-        }}
-      />
-    );
+    return <JoinFailedModal reason={joinFailedReason} onConfirm={() => navigate('/')} />;
   }
 
-  const displayWord =
-    roundSummary
-      ? ''
-      : gameStatus === 'playing' && currentDrawer === localStorage.getItem('userId')
-      ? currentWord
-      : gameStatus === 'playing'
-      ? '???'
-      : '';
+  const displayWord = roundSummary ? '' : currentDrawer === localStorage.getItem('userId') ? currentWord : gameStatus === 'playing' ? '???' : '';
   const displayTime = roundSummary ? '' : timeLeft;
 
   return (
-    <div
-      style={{
-        width: '100vw',
-        height: '100vh',
-        background: '#fafafa',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-      }}
-    >
-      <div style={{ fontSize: 48, fontWeight: 'bold', marginTop: 24, color: '#1976d2' }}>
-        {roundSummary ? `ROUND ${roundSummary.round}` : currentRound > 0 ? `ROUND ${currentRound}` : ''}
-      </div>
+    <div>
+      {/* 🎨 그림 갤러리 모달 */}
+      <LookDrawGalleryModal
+        isVisible={lookDrawVisible}
+        drawings={savedDrawings}
+        onClose={() => setLookDrawVisible(false)}
+      />
 
       <RoundSummaryModal
-  isVisible={!!roundSummary}
-  onClose={() => {
-    setRoundSummary(null);
-    setGameStatus('playing');
-  }}
-  round={roundSummary?.round || currentRound}
-  word={roundSummary?.word || currentWord}  // 빈 문자열이면 currentWord로 대체
-  correctUser={roundSummary?.correctUser || null}
-  gainedScore={roundSummary?.gainedScore || 0}
-  players={roundSummary?.players || []}
-/>
+        isVisible={!!roundSummary}
+        onClose={() => {
+          setRoundSummary(null);
+          setGameStatus('playing');
+        }}
+        round={roundSummary?.round || currentRound}
+        word={roundSummary?.word || currentWord}
+        correctUser={roundSummary?.correctUser || null}
+        gainedScore={roundSummary?.gainedScore || 0}
+        players={roundSummary?.players || []}
+      />
 
       <FinalResultModal
         isVisible={finalResultVisible}
         players={players}
         roomId={roomId!}
-        onRetry={() => {
-          if (socket) socket.emit('room:reset', { roomId });
-          setGameStatus('waiting');
-          setCurrentRound(0);
-          setCurrentDrawer(null);
-          setCurrentWord('');
-          setTimeLeft(120);
-          setRoundSummary(null);
-          canvasRef.current?.clearCanvas();
-          setFinalResultVisible(false);
-        }}
+        onRetry={startGame}
         onLeave={handleLeaveRoom}
+        onShowLookDraw={() => setLookDrawVisible(true)}
       />
 
       <div style={{ position: 'absolute', top: 24, right: 36, zIndex: 10, display: 'flex', gap: 12 }}>
@@ -357,6 +333,27 @@ const RoomPage: React.FC = () => {
           ) : gameStatus === 'playing' || gameStatus === 'summary' ? (
             <>
               제시어: {displayWord} / ⏱ {displayTime}s
+              <button
+                style={{
+                  marginLeft: 16,
+                  padding: '6px 12px',
+                  fontSize: 14,
+                  cursor: 'pointer',
+                  borderRadius: 6,
+                  border: 'none',
+                  backgroundColor: '#1976d2',
+                  color: '#fff',
+                }}
+                onClick={() => {
+                  if (canvasRef.current) {
+                    const image = canvasRef.current.getCanvasImage();
+                    setMiniCanvasImage(image);
+                    setShowMiniCanvasModal(true);
+                  }
+                }}
+              >
+                그림 보러가기
+              </button>
             </>
           ) : gameStatus === 'countdown' ? (
             <>게임 시작까지 {countdown}초</>

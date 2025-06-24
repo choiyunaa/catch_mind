@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 
 interface Player {
   nickname: string;
@@ -9,9 +8,10 @@ interface Player {
 interface FinalResultModalProps {
   isVisible: boolean;
   players: Player[];
+  roomId: string;
   onRetry: () => void;
   onLeave: () => void;
-  roomId: string; // ✅ roomId 추가
+  onShowLookDraw: () => void; // ✅ 그림 보기 모달 오픈 콜백
 }
 
 const FinalResultModal: React.FC<FinalResultModalProps> = ({
@@ -19,10 +19,8 @@ const FinalResultModal: React.FC<FinalResultModalProps> = ({
   players,
   onRetry,
   onLeave,
-  roomId, // ✅ 여기서 roomId를 받음
+  onShowLookDraw,
 }) => {
-  const navigate = useNavigate();
-
   if (!isVisible) return null;
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
@@ -60,7 +58,7 @@ const FinalResultModal: React.FC<FinalResultModalProps> = ({
           }}>다시하기</button>
 
           <button
-            onClick={() => navigate(`/lookdraw/${roomId}`)} // ✅ roomId 사용 가능
+            onClick={onShowLookDraw} // ✅ 페이지 이동 ❌ → 모달 트리거 ✅
             style={{
               padding: '12px 24px', borderRadius: 8,
               backgroundColor: '#4caf50',
@@ -69,7 +67,7 @@ const FinalResultModal: React.FC<FinalResultModalProps> = ({
               fontWeight: 'bold'
             }}
           >
-            그림 보러가기
+            그림 보기
           </button>
 
           <button onClick={onLeave} style={{

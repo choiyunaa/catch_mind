@@ -11,15 +11,14 @@ export class LookDrawService {
   ) {}
 
   async verifyUserInRoom(roomId: string, userId: string): Promise<boolean> {
-    const room = await this.roomModel.findById(roomId);
-    if (!room) return false;
+  const room = await this.roomModel.findOne({ roomId });
+  if (!room) return false;
 
-    return room.players.some((p) => p.userId === userId);
-  }
+  return room.players.some((p) => p.userId === userId);
+}
 
-  async getRoomDrawings(roomId: string): Promise<string[]> {
-    const room = await this.roomModel.findById(roomId).lean();
-    // 저장된 drawings 배열이 있다고 가정
-    return room?.drawings || [];
-  }
+async getRoomDrawings(roomId: string): Promise<string[]> {
+  const room = await this.roomModel.findOne({ roomId }).lean();
+  return room?.drawings || [];
+}
 }
