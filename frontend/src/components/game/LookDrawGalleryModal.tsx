@@ -1,3 +1,5 @@
+// src/components/game/LookDrawGalleryModal.tsx
+
 import React from 'react';
 
 interface LookDrawGalleryModalProps {
@@ -12,6 +14,26 @@ const LookDrawGalleryModal: React.FC<LookDrawGalleryModalProps> = ({
   onClose,
 }) => {
   if (!isVisible) return null;
+
+  // 다운로드 기능
+  const handleDownload = async (imageUrl: string, index: number) => {
+  try {
+    const response = await fetch(imageUrl);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `drawing_${index + 1}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url); // 메모리 누수 방지
+  } catch (err) {
+    console.error('이미지 다운로드 실패:', err);
+  }
+};
+
 
   return (
     <div
@@ -73,6 +95,9 @@ const LookDrawGalleryModal: React.FC<LookDrawGalleryModalProps> = ({
                   borderRadius: 8,
                   padding: 8,
                   backgroundColor: '#f9f9f9',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
                 }}
               >
                 <img
@@ -80,7 +105,21 @@ const LookDrawGalleryModal: React.FC<LookDrawGalleryModalProps> = ({
                   alt={`그림 ${index + 1}`}
                   style={{ width: '100%', borderRadius: 6 }}
                 />
-                <p style={{ textAlign: 'center', marginTop: 8 }}>Round {index + 1}</p>
+                <p style={{ textAlign: 'center', margin: '8px 0' }}>Round {index + 1}</p>
+                <button
+                  onClick={() => handleDownload(image, index)}
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: 14,
+                    backgroundColor: '#1976d2',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 6,
+                    cursor: 'pointer',
+                  }}
+                >
+                  이미지 저장
+                </button>
               </div>
             ))
           ) : (
