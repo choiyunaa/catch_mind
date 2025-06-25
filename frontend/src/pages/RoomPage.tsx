@@ -333,27 +333,7 @@ const RoomPage: React.FC = () => {
           ) : gameStatus === 'playing' || gameStatus === 'summary' ? (
             <>
               제시어: {displayWord} / ⏱ {displayTime}s
-              <button
-                style={{
-                  marginLeft: 16,
-                  padding: '6px 12px',
-                  fontSize: 14,
-                  cursor: 'pointer',
-                  borderRadius: 6,
-                  border: 'none',
-                  backgroundColor: '#1976d2',
-                  color: '#fff',
-                }}
-                onClick={() => {
-                  if (canvasRef.current) {
-                    const image = canvasRef.current.getCanvasImage();
-                    setMiniCanvasImage(image);
-                    setShowMiniCanvasModal(true);
-                  }
-                }}
-              >
-                그림 보러가기
-              </button>
+              
             </>
           ) : gameStatus === 'countdown' ? (
             <>게임 시작까지 {countdown}초</>
