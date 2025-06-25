@@ -169,7 +169,7 @@ const MainPage: React.FC = () => {
       {/* 메인 */}
       <main style={styles.container}>
         <div style={styles.buttonGrid}>
-          <button
+          {/* <button
             style={{
               ...styles.mainBtn,
               ...(btnHover['gallery'] ? styles.mainBtnHover : {}),
@@ -179,7 +179,20 @@ const MainPage: React.FC = () => {
             onClick={() => (window.location.href = '/gallery')}
           >
             🖼 손맛미술관
-          </button>
+          </button> */}
+
+          <button
+  style={{
+    ...styles.mainBtn,
+    ...(btnHover['gallery'] ? styles.mainBtnHover : {}),
+  }}
+  onMouseEnter={() => setBtnHover({ ...btnHover, gallery: true })}
+  onMouseLeave={() => setBtnHover({ ...btnHover, gallery: false })}
+  onClick={() => navigate('/gallery')}
+>
+  🖼 손맛미술관
+</button>
+
 
           <button
             style={{

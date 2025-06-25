@@ -22,7 +22,10 @@ export default function Header() {
         alignItems: 'center',
         padding: '0 16px'
       }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>
+        <h1
+          style={{ fontSize: '20px', fontWeight: 'bold', color: '#333', cursor: 'pointer' }}
+          onClick={() => navigate('/gallery')}
+        >
           손맛 미술관 *⸜( •ᴗ• )⸝*
         </h1>
         
@@ -32,6 +35,12 @@ export default function Header() {
             onClick={() => navigate('/gallery/write')}
           >
             글쓰기
+          </span>
+          <span
+            style={{ cursor: 'pointer', color: '#374151', fontSize: '14px' }}
+            onClick={() => navigate('/gallery/mypage')}
+          >
+            마이페이지
           </span>
           <span
             style={{ cursor: 'pointer', color: '#374151', fontSize: '14px' }}

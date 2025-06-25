@@ -5,6 +5,7 @@ import { RoomsModule } from './room/rooms.module';
 import { AuthModule } from './auth/auth.module';
 import { GameGateway } from './game/game.gateway';
 import { GameModule } from './game/game.module';
+import { GallerypostModule } from './Gallerypost/gallerypost.module'; // ✅ 추가
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { GameModule } from './game/game.module';
     }),
     RoomsModule,
     AuthModule,
+    GallerypostModule, // ✅ 등록
   ],
 })
 export class AppModule {}
