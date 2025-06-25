@@ -59,6 +59,9 @@ export class Room extends Document {
 
   @Prop({ type: Date, default: null })
   endTime: Date | null;
+
+  @Prop({ type: [String], default: [] }) // ✅ 이 줄만 추가!
+  drawings: string[]; // 라운드별 그림 (base64 또는 URL)
 }
 
 export const RoomSchema = SchemaFactory.createForClass(Room);

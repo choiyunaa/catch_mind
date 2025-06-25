@@ -1,3 +1,4 @@
+// src/game/game.service.ts
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { Server } from 'socket.io';
 import { RoomsService } from '../room/rooms.service';
@@ -80,7 +81,7 @@ export class GameService {
     this.io.to(roomId).emit('game:countdown');
 
     if (state.countdownTimeout) clearTimeout(state.countdownTimeout);
-    state.countdownTimeout = setTimeout(() => this.startRound(roomId), 3000);
+    state.countdownTimeout = setTimeout(() => this.startRound(roomId), 3000); // 3초 딱!
   }
 
   startNextRound(roomId: string) {
@@ -103,7 +104,7 @@ export class GameService {
     const drawerIndex = (state.round - 1) % players.length;
     state.drawer = players[drawerIndex];
     state.word = this.getRandomWord();
-    state.endTime = new Date(Date.now() + 10000); 
+    state.endTime = new Date(Date.now() + 3000); // 3초로 고정!
 
     this.io.to(roomId).emit('gameStarted', {
       drawer: state.drawer,
@@ -120,7 +121,7 @@ export class GameService {
     if (state.roundTimeout) clearTimeout(state.roundTimeout);
     state.roundTimeout = setTimeout(() => {
       this.endRound(roomId);
-    }, 10000);
+    }, 3000); // 3초만 버티면 됨
   }
 
   private endRound(roomId: string) {

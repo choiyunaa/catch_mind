@@ -1,5 +1,4 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom'; // 이거 추가
 
 interface Player {
   nickname: string;
@@ -9,13 +8,19 @@ interface Player {
 interface FinalResultModalProps {
   isVisible: boolean;
   players: Player[];
+  roomId: string;
   onRetry: () => void;
   onLeave: () => void;
+  onShowLookDraw: () => void; // ✅ 그림 보기 모달 오픈 콜백
 }
 
-const FinalResultModal: React.FC<FinalResultModalProps> = ({ isVisible, players, onRetry, onLeave }) => {
-  const navigate = useNavigate(); // useNavigate 훅
-
+const FinalResultModal: React.FC<FinalResultModalProps> = ({
+  isVisible,
+  players,
+  onRetry,
+  onLeave,
+  onShowLookDraw,
+}) => {
   if (!isVisible) return null;
 
   const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
@@ -52,18 +57,17 @@ const FinalResultModal: React.FC<FinalResultModalProps> = ({ isVisible, players,
             backgroundColor: '#1976d2', color: '#fff', border: 'none', fontWeight: 'bold'
           }}>다시하기</button>
 
-          {/* 여기서 손맛 미술관 버튼 추가 */}
           <button
-            onClick={() => navigate('/gallery')}
+            onClick={onShowLookDraw} // ✅ 페이지 이동 ❌ → 모달 트리거 ✅
             style={{
               padding: '12px 24px', borderRadius: 8,
-              backgroundColor: '#4caf50', // 초록색 느낌으로
+              backgroundColor: '#4caf50',
               color: '#fff',
               border: 'none',
               fontWeight: 'bold'
             }}
           >
-            손맛 미술관
+            그림 보기
           </button>
 
           <button onClick={onLeave} style={{
