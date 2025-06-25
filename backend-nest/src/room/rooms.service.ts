@@ -71,7 +71,7 @@ export class RoomsService {
   }
 
   addUserToRoom(roomId: string, userId: string, nickname: string, socketId: string) {
-    console.log('[addUserToRoom-call]', { roomId, userId, nickname, socketId });
+    //console.log('[addUserToRoom-call]', { roomId, userId, nickname, socketId });
     let players = this.roomPlayers.get(roomId) || [];
     if (players.find((p) => p.userId === userId)) return;
 
@@ -106,7 +106,7 @@ export class RoomsService {
           this.lastGainedScore.delete(roomId);
 
           this.roomModel.deleteOne({ roomId }).exec();
-          console.log(`[Room Deleted] No players left in ${roomId}`);
+          //console.log(`[Room Deleted] No players left in ${roomId}`);
         } else if (removedPlayer.isHost) {
           players[0].isHost = true;
         }

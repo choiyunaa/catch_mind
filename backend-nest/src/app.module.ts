@@ -20,7 +20,11 @@ import { LookDrawModule } from './lookdraw/lookdraw.module';
     }),
     RoomsModule,
     AuthModule,
-    GallerypostModule, // ✅ 등록
+    GallerypostModule,
+    LookDrawModule, 
+    GameModule,
   ],
 })
 export class AppModule {}
+
+
