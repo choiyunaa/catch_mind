@@ -1,4 +1,3 @@
-// src/components/game/Canvas.tsx
 import React, {
   useEffect,
   useRef,
@@ -9,10 +8,14 @@ import React, {
 import { Socket } from 'socket.io-client';
 
 const COLORS = ['#f44336', '#ff9800', '#ffeb3b', '#4caf50', '#2196f3', '#9c27b0'];
+const LINE_WIDTHS = [2, 5, 10];
 const CANVAS_MIN_WIDTH = 600;
 const CANVAS_MIN_HEIGHT = 400;
 const CANVAS_MAX_WIDTH = 900;
 const CANVAS_MAX_HEIGHT = 600;
+
+const ERASER_SIZES = [10, 20, 30];
+const DRAW_SIZES = [5, 10, 20]; // 그리기 범위 (굵기) 3단계 추가
 
 type Mode = 'draw' | 'fill' | 'erase';
 
@@ -32,7 +35,9 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentD
 
   const [color, setColor] = useState(COLORS[0]);
   const [mode, setMode] = useState<Mode>('draw');
-  const [lineWidth, setLineWidth] = useState(5);
+  // const [lineWidth, setLineWidth] = useState(LINE_WIDTHS[1]); // 기존 라인굵기 제거
+  const [drawSize, setDrawSize] = useState(DRAW_SIZES[1]); // 새 그리기 크기 상태
+  const [eraserSize, setEraserSize] = useState(ERASER_SIZES[1]);
   const [isDrawing, setIsDrawing] = useState(false);
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 500 });
 
@@ -97,7 +102,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentD
         x: e.nativeEvent.offsetX,
         y: e.nativeEvent.offsetY,
         color,
-        lineWidth,
+        lineWidth: mode === 'erase' ? eraserSize : drawSize, // drawSize로 변경
         mode,
       },
     });
@@ -111,7 +116,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentD
 
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.lineWidth = lineWidth;
+    ctx.lineWidth = mode === 'erase' ? eraserSize : drawSize; // drawSize로 변경
     ctx.strokeStyle = mode === 'erase' ? '#fff' : color;
 
     ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
@@ -124,7 +129,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentD
         x: e.nativeEvent.offsetX,
         y: e.nativeEvent.offsetY,
         color,
-        lineWidth,
+        lineWidth: mode === 'erase' ? eraserSize : drawSize, // drawSize로 변경
         mode,
       },
     });
@@ -235,7 +240,7 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentD
         />
       </div>
 
-      <div style={{ display: 'flex', gap: 12, marginBottom: 32 }}>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
         {COLORS.map(c => (
           <div
             key={c}
@@ -254,6 +259,28 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentD
             }}
           />
         ))}
+
+        {/* 그리기 범위 선택 버튼 */}
+        {DRAW_SIZES.map((size) => (
+          <button
+            key={size}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 6,
+              border: drawSize === size && mode === 'draw' ? '2px solid #1976d2' : '1px solid #ccc',
+              backgroundColor: '#fafafa',
+              cursor: 'pointer',
+              fontWeight: 'bold',
+            }}
+            onClick={() => {
+              setDrawSize(size);
+              setMode('draw');
+            }}
+          >
+            {size}px
+          </button>
+        ))}
+
         <button
           style={{
             padding: '8px 18px',
@@ -282,6 +309,22 @@ const Canvas = forwardRef<CanvasHandle, CanvasProps>(({ socket, roomId, currentD
         >
           일부 지우기
         </button>
+        {mode === 'erase' && ERASER_SIZES.map(size => (
+          <button
+            key={size}
+            style={{
+              padding: '6px 14px',
+              borderRadius: 6,
+              border: eraserSize === size ? '2px solid #1976d2' : '1px solid #ccc',
+              backgroundColor: '#fafafa',
+              cursor: 'pointer',
+              fontWeight: 'bold'
+            }}
+            onClick={() => setEraserSize(size)}
+          >
+            {size}px
+          </button>
+        ))}
         <button
           style={{
             padding: '8px 18px',

@@ -161,13 +161,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: 'center',
     alignItems: 'center',
     backgroundImage: 'url("/backgroundimg.png")',
-    backgroundSize: 'cover',       // 이미지 꽉 채우기
-    backgroundPosition: 'center',  // 중앙 정렬
-    backgroundRepeat: 'no-repeat', // 반복 안함
+    backgroundSize: 'cover',
+    backgroundPosition: 'center', 
+    backgroundRepeat: 'no-repeat',
   },
   box: {
-    width: 360,
-    padding: 32,
+    width: 460,
+    padding: 58,
     backgroundColor: '#fff',
     borderRadius: 16,
     boxShadow: '0 12px 24px rgba(39, 76, 94, 0.2)',

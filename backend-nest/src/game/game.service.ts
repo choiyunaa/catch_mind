@@ -104,7 +104,7 @@ export class GameService {
     const drawerIndex = (state.round - 1) % players.length;
     state.drawer = players[drawerIndex];
     state.word = this.getRandomWord();
-    state.endTime = new Date(Date.now() + 3000); // 3초로 고정!
+    state.endTime = new Date(Date.now() + 30000); // 3초로 고정!
 
     this.io.to(roomId).emit('gameStarted', {
       drawer: state.drawer,
@@ -121,7 +121,7 @@ export class GameService {
     if (state.roundTimeout) clearTimeout(state.roundTimeout);
     state.roundTimeout = setTimeout(() => {
       this.endRound(roomId);
-    }, 3000); // 3초만 버티면 됨
+    }, 30000); // 3초만 버티면 됨
   }
 
   private endRound(roomId: string) {
