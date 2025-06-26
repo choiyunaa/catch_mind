@@ -35,7 +35,7 @@ export class GameService {
 
   private io: Server;
   private gameStates = new Map<string, GameState>();
-  private readonly words = ['사과', '바나나', '강아지', '축구', '컴퓨터'];
+  private readonly words = ["사과", "바나나", "강아지", "축구", "컴퓨터", "냉장고", "피자", "자전거", "병원", "거북이", "텔레비전", "바다", "선물", "모자", "우산"];
 
   setIo(io: Server) {
     this.io = io;
