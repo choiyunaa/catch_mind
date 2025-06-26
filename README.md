@@ -3,7 +3,7 @@
 본 프로젝트는 실시간 소켓 통신 기반의 드로잉 게임입니다.  
 NestJS와 React를 사용하여 백엔드와 프론트엔드를 개발하였으며, 로컬 환경에서 실행됩니다.
 
----
+
 
 ## 🛠️ 1. 요구 사항
 
@@ -14,7 +14,7 @@ NestJS와 React를 사용하여 백엔드와 프론트엔드를 개발하였으�
 - **npm** (Node.js 설치 시 함께 설치됨)
 - **MongoDB Atlas** 계정 또는 로컬 MongoDB 설치
 
----
+
 
 ## 📁 2. 프로젝트 구조
 
@@ -24,7 +24,6 @@ catch_mind/
 └── frontend/           # 프론트엔드 - React + Vite
 ```
 
----
 
 ## 🔧 2.1 백엔드 실행 (NestJS)
 
@@ -66,13 +65,6 @@ JWT_REFRESH_EXPIRATION=7d
 
 > 🔒 `your_username`과 `your_password`는 MongoDB Atlas 계정 정보로 입력해 주세요.
 
-#### 📌 참고용 MONGO_URI
-
-```
-MONGO_URI=mongodb+srv://yuna:Ajks9YWt8fRSWZTz@cluster0.wdkouuq.mongodb.net/catchmind?retryWrites=true&w=majority&appName=Cluster0
-```
-
-> 해당 URI를 사용할 경우, MongoDB Atlas에서 IP 화이트리스트 등록이 필요합니다.
 
 ### ✅ 5) 서버 실행
 
@@ -120,7 +112,7 @@ npm run dev
 
 > 프론트는 [http://localhost:3000](http://localhost:3000) 또는 [http://localhost:5173](http://localhost:5173)에서 실행됩니다.
 
----
+
 
 ## 🧪 3. 테스트 방법 (2인 이상 플레이 시)
 
@@ -132,21 +124,13 @@ npm run dev
 
 각 브라우저에서 **회원가입 후 로그인**하면, 두 명의 사용자처럼 게임 방에 입장하고 플레이를 테스트할 수 있습니다.
 
----
+
 
 ## 📂 GitHub 저장소
 
 👉 [https://github.com/choiyunaa/catch_mind](https://github.com/choiyunaa/catch_mind)
 
 > 프로젝트 전체 소스코드는 위 저장소에서 확인하실 수 있습니다.
-
----
-
-## 🙏 마무리 인사
-
-한 학기 동안 좋은 강의 감사드립니다.  
-프로젝트를 통해 직접 기획하고 구현하며 많은 것을 배우는 뜻깊은 경험이었습니다.  
-감사합니다. 좋은 하루 되세요! 😊
 
 > 👩‍💻 팀명: 호두 좋아  
 > 👤 팀원: 전희주 (202537790), 최윤아 (202053789)
